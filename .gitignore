@@ -1,0 +1,34 @@
+# Python virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+
+# Large files
+*.dll
+*.lib
+*.pyd
+*.so
+*.dylib
+
+# Model & data files
+*.pt
+*.pth
+*.h5
+*.csv
+*.json
+*.xlsx
