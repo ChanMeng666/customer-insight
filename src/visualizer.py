@@ -745,7 +745,7 @@ class InsightVisualizer(Visualizer):
                 row=1, col=1
             )
             
-            # 2. 平均评分条���图
+            # 2. 平均评分条形统计图
             fig.add_trace(
                 go.Bar(
                     x=df['topic'],

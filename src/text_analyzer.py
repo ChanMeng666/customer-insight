@@ -383,7 +383,7 @@ class TopicAnalyzer(TextAnalyzer):
         # 初始化向量化器
         self.vectorizer = CountVectorizer(
             max_features=5000,
-            stop_words=self.stop_words
+            stop_words=list(self.stop_words) if self.language == 'chinese' else 'english'
         )
         
         # 加载sentence transformer模型
@@ -434,7 +434,6 @@ class TopicAnalyzer(TextAnalyzer):
             st.error(f"文本向量化失败：{str(e)}")
             return np.array([])
     
-    @st.cache_data
     def analyze_topics(self, texts: List[str], 
                       n_topics: int = 5,
                       method: str = 'lda') -> Dict:
@@ -457,7 +456,7 @@ class TopicAnalyzer(TextAnalyzer):
                 results = self._run_lda(text_vectors, n_topics)
             else:
                 # 使用sentence embeddings
-                text_vectors = self.vectorize_texts(texts)
+                text_vectors = self._cached_vectorize_texts(texts)  # 使用新的��存方法
                 results = self._run_kmeans(text_vectors, n_topics)
             
             # 添加示例文档
@@ -577,7 +576,6 @@ class TopicAnalyzer(TextAnalyzer):
             examples[topic_id] = topic_docs[:n_examples]
         return examples
     
-    @st.cache_data
     def get_topic_trends(self, df: pd.DataFrame, 
                         document_topics: List[int],
                         time_window: str = 'M') -> pd.DataFrame:
@@ -611,6 +609,30 @@ class TopicAnalyzer(TextAnalyzer):
         except Exception as e:
             st.error(f"主题趋势分析失败：{str(e)}")
             return pd.DataFrame()
+    
+    @staticmethod
+    @st.cache_data
+    def _cached_vectorize_texts(self, texts: List[str]) -> np.ndarray:
+        """
+        缓存版本的文本向量化方法
+        
+        Args:
+            texts: 文本列表
+            
+        Returns:
+            np.ndarray: 文本向量矩阵
+        """
+        try:
+            embeddings = []
+            with st.progress(0) as progress:
+                for i, text in enumerate(texts):
+                    embedding = self.sentence_model.encode(text)
+                    embeddings.append(embedding)
+                    progress.progress((i + 1) / len(texts))
+            return np.array(embeddings)
+        except Exception as e:
+            st.error(f"文本向量化失败：{str(e)}")
+            return np.array([])
 
 class InsightAnalyzer(TextAnalyzer):
     """评论洞察分析器"""
