@@ -354,64 +354,38 @@ def main():
         
         if uploaded_file is not None:
             try:
-                # 显示进度条
-                with st.spinner('正在处理数据...'):
-                    # 加载数据
-                    if uploaded_file.name.endswith('.csv'):
-                        df = pd.read_csv(uploaded_file)
-                    else:
-                        df = pd.read_excel(uploaded_file)
-                    
-                    # 数据预览
-                    st.success("文件上传成功！")
-                    st.subheader("数据预览")
-                    st.dataframe(df.head())
-                    
-                    # 显示数据基本信息
-                    st.subheader("数据基本信息")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write("数据维度:", df.shape)
-                    with col2:
-                        st.write("列名:", list(df.columns))
-                    
-                    # 数据筛选
-                    st.subheader("数据筛选")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        start_date = st.date_input(
-                            "开始日期",
-                            min(df['timestamp'].dt.date)
-                        )
-                    with col2:
-                        end_date = st.date_input(
-                            "结束日期",
-                            max(df['timestamp'].dt.date)
-                        )
-                    
-                    # 处理数据
-                    data_processor.data = df
-                    filtered_df = data_processor.filter_by_date_range(
-                        datetime.combine(start_date, datetime.min.time()),
-                        datetime.combine(end_date, datetime.max.time())
-                    )
-                    
-                    # 计算统计信息
-                    stats = data_processor.calculate_statistics()
-                    
-                    # 显示统计信息
-                    st.subheader("统计信息")
-                    display_statistics(stats)
-                    
-                    # 显示图表
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        plot_rating_distribution(stats)
-                    with col2:
-                        plot_daily_reviews(stats)
+                # 读取CSV文件
+                df = pd.read_csv(uploaded_file)
+                
+                # 验证必需的列是否存在
+                required_columns = ['timestamp', 'content']  # 或 'text' 替代 'content'
+                missing_columns = [col for col in required_columns if col not in df.columns]
+                
+                if missing_columns:
+                    st.error(f"CSV文件缺少必需的列: {', '.join(missing_columns)}")
+                    st.info("请确保CSV文件包含以下列：timestamp（时间戳）和content（文本内容）")
+                    return
+                
+                # 初始化 filtered_df
+                filtered_df = df.copy()
+                
+                # 显示数据预览
+                st.subheader("数据预览")
+                st.write(df.head())
+                
+                # 数据筛选部分
+                st.subheader("数据筛选")
+                # ... 筛选逻辑 ...
+                
+                # 确保在调用其他函数前 filtered_df 已经被定义
+                if 'filtered_df' in locals():
+                    show_keyword_analysis(filtered_df, language)
+                else:
+                    st.error("数据筛选过程出现错误，请检查筛选条件")
                     
             except Exception as e:
-                st.error(f"数据处理错误：{str(e)}")
+                st.error(f"处理CSV文件时出现错误: {str(e)}")
+                st.info("请确保CSV文件格式正确，并且包含所需的列")
     
     # 初始化分析器
     sentiment_analyzer = SentimentAnalyzer(language)
