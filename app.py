@@ -58,13 +58,18 @@ def show_keyword_analysis(df: pd.DataFrame, language: str):
     # 分析设置
     col1, col2 = st.columns(2)
     with col1:
-        top_n = st.slider("显示关键词数量", 5, 50, 20)
+        top_n = st.slider(
+            "显示关键词数量",
+            5, 50, 20,
+            key="keyword_analysis_count_slider"
+        )
     with col2:
         time_window = st.selectbox(
             "时间窗口",
             options=[("日", "D"), ("周", "W"), ("月", "M")],
             format_func=lambda x: x[0],
-            index=1
+            index=1,
+            key="keyword_analysis_time_window"
         )[1]
     
     # 创建标签页
@@ -72,10 +77,10 @@ def show_keyword_analysis(df: pd.DataFrame, language: str):
     
     with tab1:
         st.subheader("词云分析")
-        if st.button("生成词云", key="generate_wordcloud"):
+        if st.button("生成词云", key="keyword_analysis_wordcloud_button"):
             with st.spinner("正在生成词云..."):
                 # 提取关键词
-                texts = df['review_text'].tolist()
+                texts = df['content'].tolist()
                 keywords = keyword_analyzer.extract_keywords(texts, top_n)
                 
                 # 生成词云图
@@ -86,12 +91,12 @@ def show_keyword_analysis(df: pd.DataFrame, language: str):
     
     with tab2:
         st.subheader("关键词趋势分析")
-        if st.button("分析趋势", key="analyze_trends"):
+        if st.button("分析趋势", key="keyword_analysis_trend_button"):
             with st.spinner("正在分析趋势..."):
                 # 获取整体关键词
                 all_keywords = keyword_analyzer.extract_keywords(
-                    df['review_text'].tolist(),
-                    top_n=10  # 追踪前10个关键词
+                    df['content'].tolist(),
+                    top_n=10
                 )
                 
                 # 计算趋势
@@ -109,7 +114,7 @@ def show_keyword_analysis(df: pd.DataFrame, language: str):
     
     with tab3:
         st.subheader("评分关键词对比")
-        if st.button("分析评分关键词", key="analyze_rating_keywords"):
+        if st.button("分析评分关键词", key="keyword_analysis_rating_button"):
             with st.spinner("正在分析评分关键词..."):
                 # 按评分提取关键词
                 keywords_by_rating = keyword_analyzer.extract_keywords_by_rating(
@@ -321,7 +326,7 @@ def main():
         layout="wide"
     )
     
-    # 页面标题
+    # 页面问题
     st.title("顾客评论分析系统")
     st.markdown("### 智能分析您的顾客评论数据")
     
@@ -358,7 +363,7 @@ def main():
                 df = pd.read_csv(uploaded_file)
                 
                 # 验证必需的列是否存在
-                required_columns = ['timestamp', 'content']  # 或 'text' 替代 'content'
+                required_columns = ['timestamp', 'content']
                 missing_columns = [col for col in required_columns if col not in df.columns]
                 
                 if missing_columns:
@@ -377,12 +382,6 @@ def main():
                 st.subheader("数据筛选")
                 # ... 筛选逻辑 ...
                 
-                # 确保在调用其他函数前 filtered_df 已经被定义
-                if 'filtered_df' in locals():
-                    show_keyword_analysis(filtered_df, language)
-                else:
-                    st.error("数据筛选过程出现错误，请检查筛选条件")
-                    
             except Exception as e:
                 st.error(f"处理CSV文件时出现错误: {str(e)}")
                 st.info("请确保CSV文件格式正确，并且包含所需的列")
@@ -487,7 +486,11 @@ def main():
         if 'df' not in locals():
             st.info("请先上传数据文件")
         else:
-            show_keyword_analysis(filtered_df, language)
+            # 在这里调用 show_keyword_analysis，并添加随机后缀以确保 key 唯一
+            import random
+            import string
+            random_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+            show_keyword_analysis_with_unique_keys(filtered_df, language, random_suffix)
     
     with tabs[3]:
         if 'df' not in locals():
@@ -508,6 +511,94 @@ def main():
         else:
             st.subheader("自定义图表")
             # 这里可以添加自定义可视化的代码
+
+def show_keyword_analysis_with_unique_keys(df: pd.DataFrame, language: str, suffix: str):
+    """
+    显示关键词分析页面（带有唯一的key）
+    
+    Args:
+        df: 数据框
+        language: 文本语言
+        suffix: 用于生成唯一key的后缀
+    """
+    st.header("关键词分析")
+    
+    # 初始化分析器
+    keyword_analyzer = KeywordAnalyzer(language)
+    keyword_visualizer = KeywordVisualizer()
+    
+    # 分析设置
+    col1, col2 = st.columns(2)
+    with col1:
+        top_n = st.slider(
+            "显示关键词数量",
+            5, 50, 20,
+            key=f"keyword_analysis_count_slider_{suffix}"
+        )
+    with col2:
+        time_window = st.selectbox(
+            "时间窗口",
+            options=[("日", "D"), ("周", "W"), ("月", "M")],
+            format_func=lambda x: x[0],
+            index=1,
+            key=f"keyword_analysis_time_window_{suffix}"
+        )[1]
+    
+    # 创建标签页
+    tab1, tab2, tab3 = st.tabs(["词云图", "关键词趋势", "评分关键词对比"])
+    
+    with tab1:
+        st.subheader("词云分析")
+        if st.button("生成词云", key=f"keyword_analysis_wordcloud_button_{suffix}"):
+            with st.spinner("正在生成词云..."):
+                texts = df['content'].tolist()
+                keywords = keyword_analyzer.extract_keywords(texts, top_n)
+                st.plotly_chart(
+                    keyword_visualizer.create_wordcloud(keywords),
+                    use_container_width=True
+                )
+    
+    with tab2:
+        st.subheader("关键词趋势分析")
+        if st.button("分析趋势", key=f"keyword_analysis_trend_button_{suffix}"):
+            with st.spinner("正在分析趋势..."):
+                all_keywords = keyword_analyzer.extract_keywords(
+                    df['content'].tolist(),
+                    top_n=10
+                )
+                trend_df = keyword_analyzer.calculate_keyword_trends(
+                    df,
+                    list(all_keywords.keys()),
+                    time_window
+                )
+                st.plotly_chart(
+                    keyword_visualizer.create_keyword_trend_chart(trend_df),
+                    use_container_width=True
+                )
+    
+    with tab3:
+        st.subheader("评分关键词对比")
+        if st.button("分析评分关键词", key=f"keyword_analysis_rating_button_{suffix}"):
+            with st.spinner("正在分析评分关键词..."):
+                keywords_by_rating = keyword_analyzer.extract_keywords_by_rating(
+                    df,
+                    top_n=10
+                )
+                st.plotly_chart(
+                    keyword_visualizer.create_rating_keyword_comparison(keywords_by_rating),
+                    use_container_width=True
+                )
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("##### 高分评价常见关键词")
+                    for word, weight in keywords_by_rating['positive'].items():
+                        st.write(f"- {word}: {weight:.4f}")
+                
+                with col2:
+                    st.markdown("##### 低分评价常见关键词")
+                    for word, weight in keywords_by_rating['negative'].items():
+                        st.write(f"- {word}: {weight:.4f}")
 
 if __name__ == "__main__":
     main() 

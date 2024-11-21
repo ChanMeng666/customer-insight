@@ -22,6 +22,34 @@ from scipy import stats
 from typing import List, Dict, Tuple
 import numpy as np
 from datetime import datetime, timedelta
+import nltk
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+    nltk.download('punkt')  # 为word_tokenize下载必要的资源
+
+@st.cache_data
+def load_stopwords(language: str) -> Set[str]:
+    """
+    缓存加载停用词表
+    
+    Args:
+        language: 文本语言
+        
+    Returns:
+        Set[str]: 停用词集合
+    """
+    try:
+        if language == 'chinese':
+            with open('utils/chinese_stopwords.txt', 'r', encoding='utf-8') as f:
+                return set(line.strip() for line in f)
+        else:
+            from nltk.corpus import stopwords
+            return set(stopwords.words('english'))
+    except Exception as e:
+        st.warning(f"停用词加载失败：{str(e)}")
+        return set()
 
 class TextAnalyzer:
     """文本分析基类"""
@@ -172,7 +200,7 @@ class KeywordAnalyzer(TextAnalyzer):
             language: 文本语言，支持 'chinese' 或 'english'
         """
         super().__init__(language)
-        self.stop_words = self._load_stop_words()
+        self.stop_words = load_stopwords(language)
         
         # 配置TF-IDF分析器
         self.tfidf = TfidfVectorizer(
@@ -180,25 +208,6 @@ class KeywordAnalyzer(TextAnalyzer):
             stop_words=self.stop_words,
             tokenizer=self._tokenize_text
         )
-    
-    @st.cache_data
-    def _load_stop_words(self) -> Set[str]:
-        """
-        加载停用词表
-        
-        Returns:
-            Set[str]: 停用词集合
-        """
-        try:
-            if self.language == 'chinese':
-                with open('utils/chinese_stopwords.txt', 'r', encoding='utf-8') as f:
-                    return set(line.strip() for line in f)
-            else:
-                from nltk.corpus import stopwords
-                return set(stopwords.words('english'))
-        except Exception as e:
-            st.warning(f"停用词加载失败：{str(e)}")
-            return set()
     
     def _tokenize_text(self, text: str) -> List[str]:
         """
@@ -320,7 +329,7 @@ class KeywordAnalyzer(TextAnalyzer):
                 texts = group['review_text'].tolist()
                 keywords = self.extract_keywords(texts, len(top_keywords))
                 
-                # 记录每个关注关键词的频率
+                # 记录每个关注关键词��频率
                 for keyword in top_keywords:
                     trend_data.append({
                         'timestamp': time,
@@ -349,9 +358,14 @@ class TopicAnalyzer(TextAnalyzer):
         # 初始化模型
         self.lda_model = None
         self.kmeans_model = None
+        
+        # 加载停用词
+        self.stop_words = self.load_stopwords()  # 使用父类的方法
+        
+        # 初始化向量化器
         self.vectorizer = CountVectorizer(
             max_features=5000,
-            stop_words=self._load_stop_words()
+            stop_words=self.stop_words
         )
         
         # 加载sentence transformer模型
@@ -360,6 +374,24 @@ class TopicAnalyzer(TextAnalyzer):
         except Exception as e:
             st.error(f"Sentence Transformer模型加载失败：{str(e)}")
             raise
+    
+    def load_stopwords(self) -> Set[str]:
+        """
+        加载停用词
+        
+        Returns:
+            Set[str]: 停用词集合
+        """
+        try:
+            if self.language == 'chinese':
+                with open('utils/chinese_stopwords.txt', 'r', encoding='utf-8') as f:
+                    return set(line.strip() for line in f)
+            else:
+                from nltk.corpus import stopwords
+                return set(stopwords.words('english'))
+        except Exception as e:
+            st.error(f"停用词加载失败：{str(e)}")
+            return set()
     
     @st.cache_data(show_spinner=False)
     def vectorize_texts(self, texts: List[str]) -> np.ndarray:
@@ -574,7 +606,7 @@ class InsightAnalyzer(TextAnalyzer):
         """
         super().__init__(language)
         
-        # 初始化异常检测器
+        # 初始化异常检器
         self.outlier_detector = IsolationForest(
             contamination=0.1,
             random_state=42,
