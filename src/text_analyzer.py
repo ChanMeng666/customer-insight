@@ -378,7 +378,7 @@ class TopicAnalyzer(TextAnalyzer):
         self.kmeans_model = None
         
         # 加载停用词
-        self.stop_words = self.load_stopwords()  # 使用父类的方法
+        self.stop_words = self.load_stopwords()
         
         # 初始化向量化器
         self.vectorizer = CountVectorizer(
@@ -411,13 +411,15 @@ class TopicAnalyzer(TextAnalyzer):
             st.error(f"停用词加载失败：{str(e)}")
             return set()
     
-    @st.cache_data(show_spinner=False)
-    def vectorize_texts(self, texts: List[str]) -> np.ndarray:
+    @staticmethod
+    @st.cache_data
+    def _cached_vectorize_texts(texts: List[str], model) -> np.ndarray:
         """
-        使用sentence-transformers进行文本向量化
+        缓存版本的文本向量化方法
         
         Args:
             texts: 文本列表
+            model: SentenceTransformer模型实例
             
         Returns:
             np.ndarray: 文本向量矩阵
@@ -426,7 +428,7 @@ class TopicAnalyzer(TextAnalyzer):
             embeddings = []
             with st.progress(0) as progress:
                 for i, text in enumerate(texts):
-                    embedding = self.sentence_model.encode(text)
+                    embedding = model.encode(text)
                     embeddings.append(embedding)
                     progress.progress((i + 1) / len(texts))
             return np.array(embeddings)
@@ -456,7 +458,7 @@ class TopicAnalyzer(TextAnalyzer):
                 results = self._run_lda(text_vectors, n_topics)
             else:
                 # 使用sentence embeddings
-                text_vectors = self._cached_vectorize_texts(texts)  # 使用新的��存方法
+                text_vectors = self._cached_vectorize_texts(texts, self.sentence_model)
                 results = self._run_kmeans(text_vectors, n_topics)
             
             # 添加示例文档
@@ -609,30 +611,6 @@ class TopicAnalyzer(TextAnalyzer):
         except Exception as e:
             st.error(f"主题趋势分析失败：{str(e)}")
             return pd.DataFrame()
-    
-    @staticmethod
-    @st.cache_data
-    def _cached_vectorize_texts(self, texts: List[str]) -> np.ndarray:
-        """
-        缓存版本的文本向量化方法
-        
-        Args:
-            texts: 文本列表
-            
-        Returns:
-            np.ndarray: 文本向量矩阵
-        """
-        try:
-            embeddings = []
-            with st.progress(0) as progress:
-                for i, text in enumerate(texts):
-                    embedding = self.sentence_model.encode(text)
-                    embeddings.append(embedding)
-                    progress.progress((i + 1) / len(texts))
-            return np.array(embeddings)
-        except Exception as e:
-            st.error(f"文本向量化失败：{str(e)}")
-            return np.array([])
 
 class InsightAnalyzer(TextAnalyzer):
     """评论洞察分析器"""
@@ -646,7 +624,7 @@ class InsightAnalyzer(TextAnalyzer):
         """
         super().__init__(language)
         
-        # 初始化异常检器
+        # 初始化异常检测器
         self.outlier_detector = IsolationForest(
             contamination=0.1,
             random_state=42,
@@ -654,10 +632,161 @@ class InsightAnalyzer(TextAnalyzer):
         )
         self.scaler = StandardScaler()
     
+    def analyze_rating_sentiment_correlation(self, df: pd.DataFrame) -> Dict:
+        """
+        分析评分与情感的相关性
+        
+        Args:
+            df: 评论数据DataFrame
+            
+        Returns:
+            Dict: 相关性分析结果
+        """
+        try:
+            # 检查必要的列是否存在
+            if 'sentiment' not in df.columns or 'rating' not in df.columns:
+                return {
+                    'correlation': 0,
+                    'consistency': 0,
+                    'error': '缺少必要的列（sentiment或rating）'
+                }
+            
+            # 转换情感标签为数值
+            sentiment_map = {'正面': 1, '中性': 0.5, '负面': 0}
+            sentiment_scores = df['sentiment'].map(sentiment_map)
+            
+            # 检查是否有有效的情感得分
+            if sentiment_scores.isna().all():
+                return {
+                    'correlation': 0,
+                    'consistency': 0,
+                    'error': '无法转换情感标签'
+                }
+            
+            # 计算相关系数
+            correlation = np.corrcoef(df['rating'], sentiment_scores)[0, 1]
+            
+            # 计算一致性
+            consistency = (
+                (df['rating'] >= 4) & (df['sentiment'] == '正面') |
+                (df['rating'] <= 2) & (df['sentiment'] == '负面') |
+                (df['rating'] == 3) & (df['sentiment'] == '中性')
+            ).mean()
+            
+            return {
+                'correlation': correlation,
+                'consistency': consistency
+            }
+            
+        except Exception as e:
+            st.error(f"相关性分析失败：{str(e)}")
+            return {
+                'correlation': 0,
+                'consistency': 0,
+                'error': str(e)
+            }
+    
+    def detect_anomalies(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        检测评论异常
+        
+        Args:
+            df: 包含评论数据的DataFrame
+            
+        Returns:
+            pd.DataFrame: 带有异常标记的DataFrame
+        """
+        try:
+            # 复制数据框
+            df_copy = df.copy()
+            
+            # 准备特征
+            features = []
+            
+            # 1. 评分特征
+            if 'rating' in df_copy.columns:
+                features.append(df_copy['rating'])
+            
+            # 2. 评论长度特征
+            if 'content' in df_copy.columns:
+                df_copy['review_length'] = df_copy['content'].str.len()
+                features.append(df_copy['review_length'])
+            elif 'review_text' in df_copy.columns:  # 添加对 review_text 列的支持
+                df_copy['review_length'] = df_copy['review_text'].str.len()
+                features.append(df_copy['review_length'])
+            
+            # 如果没有足够的特征，返回原始数据框
+            if len(features) < 1:
+                st.warning("没有足够的特征用于异常检测")
+                df_copy['is_anomaly'] = False
+                df_copy['anomaly_reason'] = ''
+                return df_copy
+            
+            # 将特征组合成矩阵
+            X = np.column_stack(features)
+            
+            # 标准化特征
+            X_scaled = self.scaler.fit_transform(X)
+            
+            # 检测异常
+            anomaly_labels = self.outlier_detector.fit_predict(X_scaled)
+            df_copy['is_anomaly'] = anomaly_labels == -1
+            
+            # 添加异常原因
+            df_copy['anomaly_reason'] = ''
+            anomaly_mask = df_copy['is_anomaly']
+            
+            # 检测异常长度的评论
+            if 'review_length' in df_copy.columns:
+                length_mean = df_copy['review_length'].mean()
+                length_std = df_copy['review_length'].std()
+                extremely_short = df_copy['review_length'] < (length_mean - 2 * length_std)
+                extremely_long = df_copy['review_length'] > (length_mean + 2 * length_std)
+                
+                df_copy.loc[anomaly_mask & extremely_short, 'anomaly_reason'] = '评论异常简短'
+                df_copy.loc[anomaly_mask & extremely_long, 'anomaly_reason'] = '评论异常冗长'
+            
+            # 对于没有具体原因的异常，标记为"其他异常"
+            df_copy.loc[anomaly_mask & (df_copy['anomaly_reason'] == ''), 'anomaly_reason'] = '其他异常'
+            
+            return df_copy
+            
+        except Exception as e:
+            st.error(f"异常检测失败：{str(e)}")
+            return df
+    
+    # 移除实例方法上的缓存装饰器，改为使用静态方法
+    @staticmethod
     @st.cache_data
+    def cached_extract_insights(df: pd.DataFrame, language: str) -> Dict:
+        """
+        缓存版本的洞察提取方法
+        
+        Args:
+            df: 包含评论数据的DataFrame
+            language: 文本语言
+            
+        Returns:
+            Dict: 洞察结果
+        """
+        analyzer = InsightAnalyzer(language)
+        return analyzer._extract_insights(df)
+    
     def extract_insights(self, df: pd.DataFrame) -> Dict:
         """
-        提取评论洞察
+        提取评论洞察的公共接口
+        
+        Args:
+            df: 包含评论数据的DataFrame
+            
+        Returns:
+            Dict: 洞察结果
+        """
+        return self.cached_extract_insights(df, self.language)
+    
+    def _extract_insights(self, df: pd.DataFrame) -> Dict:
+        """
+        实际的洞察提取逻辑
         
         Args:
             df: 包含评论数据的DataFrame
@@ -687,46 +816,3 @@ class InsightAnalyzer(TextAnalyzer):
         except Exception as e:
             st.error(f"洞察分析失败：{str(e)}")
             return {}
-
-    def analyze_rating_sentiment_correlation(self, df: pd.DataFrame) -> Dict:
-        """
-        分析评分与情感的相关性
-        
-        Args:
-            df: 评论数据DataFrame
-            
-        Returns:
-            Dict: 相关性分析结果
-        """
-        try:
-            # 转换情感签为数值
-            sentiment_scores = df['sentiment'].map({'正面': 1, '负面': 0, '中性': 0.5})
-            
-            # 计算相关系数
-            correlation = stats.pearsonr(df['rating'], sentiment_scores)[0]
-            
-            # 分析一致性
-            consistency = (
-                (df['rating'] >= 4) & (df['sentiment'] == '正面') |
-                (df['rating'] <= 2) & (df['sentiment'] == '负面') |
-                (df['rating'] == 3) & (df['sentiment'] == '中性')
-            ).mean()
-            
-            return {
-                'correlation': correlation,
-                'consistency': consistency,
-                'inconsistent_examples': self._get_inconsistent_examples(df)
-            }
-            
-        except Exception as e:
-            st.error(f"相关性分析失败：{str(e)}")
-            return {}
-
-    def _get_inconsistent_examples(self, df: pd.DataFrame) -> List[Dict]:
-        """获取情感-评分不一致的例子"""
-        inconsistent = df[
-            ((df['rating'] >= 4) & (df['sentiment'] == '负面')) |
-            ((df['rating'] <= 2) & (df['sentiment'] == '正面'))
-        ]
-        
-        return inconsistent[['review_text', 'rating', 'sentiment']].head(5).to_dict('records')
