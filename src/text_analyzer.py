@@ -89,7 +89,6 @@ class SentimentAnalyzer(TextAnalyzer):
             st.error(f"模型加载失败：{str(e)}")
             raise
     
-    @st.cache_data(show_spinner=False)
     def analyze_batch(self, texts: List[str], batch_size: int = 32) -> List[Dict]:
         """
         批量分析文本情感
@@ -188,6 +187,25 @@ class SentimentAnalyzer(TextAnalyzer):
         }
         
         return stats
+    
+    @staticmethod
+    @st.cache_data
+    def cached_analyze_batch(texts: List[str], model_name: str, device: str, language: str, batch_size: int = 32) -> List[Dict]:
+        """
+        带缓存的批量文本情感分析
+        
+        Args:
+            texts: 文本列表
+            model_name: 模型名称
+            device: 设备类型
+            language: 文本语言
+            batch_size: 批处理大小
+            
+        Returns:
+            List[Dict]: 情感分析结果列表
+        """
+        analyzer = SentimentAnalyzer(language)
+        return analyzer.analyze_batch(texts, batch_size)
 
 class KeywordAnalyzer(TextAnalyzer):
     """关键词分析器"""
@@ -329,7 +347,7 @@ class KeywordAnalyzer(TextAnalyzer):
                 texts = group['review_text'].tolist()
                 keywords = self.extract_keywords(texts, len(top_keywords))
                 
-                # 记录每个关注关键词��频率
+                # 记录每个关注关键词频率
                 for keyword in top_keywords:
                     trend_data.append({
                         'timestamp': time,

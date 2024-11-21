@@ -184,7 +184,7 @@ def show_topic_analysis(df: pd.DataFrame, language: str):
     if st.button("开始分析", key="start_topic_analysis"):
         with st.spinner("正在进行主题分析..."):
             # 获取文本数据
-            texts = df['review_text'].tolist()
+            texts = df['content'].tolist()
             
             # 执行主题分析
             topic_results = topic_analyzer.analyze_topics(
@@ -343,8 +343,8 @@ def main():
         
         analysis_options = st.multiselect(
             "选择分析维度",
-            ["情感分析", "关键词提取", "主题聚类", "评分统计"],
-            default=["情感分析", "关键词提取"]
+            options=["情感分析", "关键词分析", "主题聚类", "评分统计"],
+            default=["情感分析", "关键词分析"]
         )
     
     # 主要内容区域
@@ -369,6 +369,14 @@ def main():
                 if missing_columns:
                     st.error(f"CSV文件缺少必需的列: {', '.join(missing_columns)}")
                     st.info("请确保CSV文件包含以下列：timestamp（时间戳）和content（文本内容）")
+                    return
+                
+                # 转换时间戳为datetime格式
+                try:
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                except Exception as e:
+                    st.error(f"时间戳格式转换失败：{str(e)}")
+                    st.info("请确保timestamp列的格式为标准日期时间格式")
                     return
                 
                 # 初始化 filtered_df
@@ -409,108 +417,126 @@ def main():
                     progress_text = st.empty()
                     progress_bar = st.progress(0)
                     
-                    # 执行情感分析
-                    texts = filtered_df['review_text'].tolist()
-                    sentiment_results = sentiment_analyzer.analyze_batch(
-                        texts,
-                        batch_size=batch_size
-                    )
-                    
-                    # 更新DataFrame
-                    filtered_df['sentiment'] = [r['sentiment'] for r in sentiment_results]
-                    filtered_df['confidence'] = [r['confidence'] for r in sentiment_results]
-                    
-                    # 计算统计信息
-                    sentiment_stats = sentiment_analyzer.get_sentiment_stats(sentiment_results)
-                    
-                    # 显示结果
-                    st.subheader("分析结果")
-                    
-                    # 显示基本统计信息
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric(
-                            "正面评论比例",
-                            f"{sentiment_stats['sentiment_distribution'].get('正面', 0) / len(sentiment_results):.1%}"
+                    try:
+                        # 执行情感分析
+                        texts = filtered_df['content'].tolist()
+                        sentiment_results = SentimentAnalyzer.cached_analyze_batch(
+                            texts=texts,
+                            model_name=sentiment_analyzer.model_name,
+                            device=str(sentiment_analyzer.device),
+                            language=language,
+                            batch_size=batch_size
                         )
-                    with col2:
-                        st.metric(
-                            "负面评论比例",
-                            f"{sentiment_stats['sentiment_distribution'].get('负面', 0) / len(sentiment_results):.1%}"
-                        )
-                    with col3:
-                        st.metric(
-                            "平均置信度",
-                            f"{sentiment_stats['average_confidence']:.2f}"
-                        )
-                    
-                    # 显示可视化结果
-                    st.plotly_chart(
-                        sentiment_visualizer.create_sentiment_distribution(sentiment_results)
-                    )
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
+                        
+                        # 更新DataFrame
+                        filtered_df['sentiment'] = [r['sentiment'] for r in sentiment_results]
+                        filtered_df['confidence'] = [r['confidence'] for r in sentiment_results]
+                        
+                        # 计算统计信息
+                        sentiment_stats = sentiment_analyzer.get_sentiment_stats(sentiment_results)
+                        
+                        # 显示结果
+                        st.subheader("分析结果")
+                        
+                        # 显示基本统计信息
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric(
+                                "正面评论比例",
+                                f"{sentiment_stats['sentiment_distribution'].get('正面', 0) / len(sentiment_results):.1%}"
+                            )
+                        with col2:
+                            st.metric(
+                                "负面评论比例",
+                                f"{sentiment_stats['sentiment_distribution'].get('负面', 0) / len(sentiment_results):.1%}"
+                            )
+                        with col3:
+                            st.metric(
+                                "平均置信度",
+                                f"{sentiment_stats['average_confidence']:.2f}"
+                            )
+                        
+                        # 显示可视化结果
                         st.plotly_chart(
-                            sentiment_visualizer.create_sentiment_trend(filtered_df)
+                            sentiment_visualizer.create_sentiment_distribution(sentiment_results)
                         )
-                    with col2:
-                        st.plotly_chart(
-                            sentiment_visualizer.create_rating_sentiment_comparison(filtered_df)
-                        )
-                    
-                    # 显示典型评论
-                    st.subheader("典型评论示例")
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.markdown("##### 典型正面评论")
-                        for comment in sentiment_stats['typical_positive']:
-                            st.markdown(f"""
-                            > {comment['text']}  
-                            > 置信度：{comment['confidence']:.2f}
-                            """)
-                    
-                    with col2:
-                        st.markdown("##### 典型负面评论")
-                        for comment in sentiment_stats['typical_negative']:
-                            st.markdown(f"""
-                            > {comment['text']}  
-                            > 置信度：{comment['confidence']:.2f}
-                            """)
-                    
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.plotly_chart(
+                                sentiment_visualizer.create_sentiment_trend(filtered_df)
+                            )
+                        with col2:
+                            st.plotly_chart(
+                                sentiment_visualizer.create_rating_sentiment_comparison(filtered_df)
+                            )
+                        
+                        # 显示典型评论
+                        st.subheader("典型评论示例")
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("##### 典型正面评论")
+                            for comment in sentiment_stats['typical_positive']:
+                                st.markdown(f"""
+                                > {comment['text']}  
+                                > 置信度：{comment['confidence']:.2f}
+                                """)
+                        
+                        with col2:
+                            st.markdown("##### 典型负面评论")
+                            for comment in sentiment_stats['typical_negative']:
+                                st.markdown(f"""
+                                > {comment['text']}  
+                                > 置信度：{comment['confidence']:.2f}
+                                """)
+                        
+                    except Exception as e:
+                        st.error(f"情感分析过程出错：{str(e)}")
             except Exception as e:
-                st.error(f"情感分析过程出错：{str(e)}")
+                st.error(f"初始化情感分析器时出错：{str(e)}")
     
     with tabs[2]:
         if 'df' not in locals():
             st.info("请先上传数据文件")
         else:
-            # 在这里调用 show_keyword_analysis，并添加随机后缀以确保 key 唯一
-            import random
-            import string
-            random_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-            show_keyword_analysis_with_unique_keys(filtered_df, language, random_suffix)
+            try:
+                # 在这里调用 show_keyword_analysis，并添加随机后缀以确保 key 唯一
+                import random
+                import string
+                random_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+                show_keyword_analysis_with_unique_keys(filtered_df, language, random_suffix)
+            except Exception as e:
+                st.error(f"关键词分析过程出错：{str(e)}")
     
     with tabs[3]:
         if 'df' not in locals():
             st.info("请先上传数据文件")
         else:
-            show_topic_analysis(filtered_df, language)
+            try:
+                show_topic_analysis(filtered_df, language)
+            except Exception as e:
+                st.error(f"主题分析过程出错：{str(e)}")
     
     with tabs[4]:
         if 'df' not in locals():
             st.info("请先上传数据文件")
         else:
-            show_insights_analysis(filtered_df, language)
+            try:
+                show_insights_analysis(filtered_df, language)
+            except Exception as e:
+                st.error(f"洞察分析过程出错：{str(e)}")
     
     with tabs[5]:
         st.header("可视化展示")
         if 'df' not in locals():
             st.info("请先上传数据文件")
         else:
-            st.subheader("自定义图表")
-            # 这里可以添加自定义可视化的代码
+            try:
+                st.subheader("自定义图表")
+                # 这里可以添加自��义可视化的代码
+            except Exception as e:
+                st.error(f"可视化过程出错：{str(e)}")
 
 def show_keyword_analysis_with_unique_keys(df: pd.DataFrame, language: str, suffix: str):
     """

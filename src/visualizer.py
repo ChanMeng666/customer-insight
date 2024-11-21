@@ -96,35 +96,45 @@ class SentimentVisualizer(Visualizer):
         Returns:
             go.Figure: Plotly图表对象
         """
-        # 按日期统计各情感的数量
-        daily_sentiment = df.groupby([
-            df['timestamp'].dt.date,
-            'sentiment'
-        ]).size().unstack(fill_value=0)
-        
-        # 计算百分比
-        daily_sentiment_pct = daily_sentiment.div(daily_sentiment.sum(axis=1), axis=0) * 100
-        
-        fig = go.Figure()
-        
-        for sentiment in daily_sentiment_pct.columns:
-            fig.add_trace(go.Scatter(
-                x=daily_sentiment_pct.index,
-                y=daily_sentiment_pct[sentiment],
-                name=sentiment,
-                mode='lines',
-                line=dict(color=self.color_map.get(sentiment)),
-                stackgroup='one'
-            ))
-        
-        fig.update_layout(
-            title='情感趋势变化',
-            xaxis_title='日期',
-            yaxis_title='比例 (%)',
-            hovermode='x unified'
-        )
-        
-        return fig
+        try:
+            # 确保timestamp列是datetime类型
+            if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                df = df.copy()
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+            
+            # 按日期统计各情感的数量
+            daily_sentiment = df.groupby([
+                df['timestamp'].dt.date,
+                'sentiment'
+            ]).size().unstack(fill_value=0)
+            
+            # 计算百分比
+            daily_sentiment_pct = daily_sentiment.div(daily_sentiment.sum(axis=1), axis=0) * 100
+            
+            fig = go.Figure()
+            
+            for sentiment in daily_sentiment_pct.columns:
+                fig.add_trace(go.Scatter(
+                    x=daily_sentiment_pct.index,
+                    y=daily_sentiment_pct[sentiment],
+                    name=sentiment,
+                    mode='lines',
+                    line=dict(color=self.color_map.get(sentiment)),
+                    stackgroup='one'
+                ))
+            
+            fig.update_layout(
+                title='情感趋势变化',
+                xaxis_title='日期',
+                yaxis_title='比例 (%)',
+                hovermode='x unified'
+            )
+            
+            return fig
+            
+        except Exception as e:
+            st.error(f"情感趋势图生成失败：{str(e)}")
+            return go.Figure()
     
     def create_rating_sentiment_comparison(self, df: pd.DataFrame) -> go.Figure:
         """
@@ -735,7 +745,7 @@ class InsightVisualizer(Visualizer):
                 row=1, col=1
             )
             
-            # 2. 平均评分条形图
+            # 2. 平均评分条���图
             fig.add_trace(
                 go.Bar(
                     x=df['topic'],
