@@ -388,11 +388,125 @@ def main():
                 
                 # 数据筛选部分
                 st.subheader("数据筛选")
-                # ... 筛选逻辑 ...
+                
+                # 创建三列布局
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    # 时间范围筛选
+                    st.write("时间范围筛选")
+                    min_date = df['timestamp'].min().date()
+                    max_date = df['timestamp'].max().date()
+                    
+                    start_date = st.date_input(
+                        "开始日期",
+                        min_value=min_date,
+                        max_value=max_date,
+                        value=min_date
+                    )
+                    
+                    end_date = st.date_input(
+                        "结束日期",
+                        min_value=min_date,
+                        max_value=max_date,
+                        value=max_date
+                    )
+                
+                with col2:
+                    # 评分筛选（如果存在评分列）
+                    if 'rating' in df.columns:
+                        st.write("评分筛选")
+                        min_rating = float(df['rating'].min())
+                        max_rating = float(df['rating'].max())
+                        
+                        rating_range = st.slider(
+                            "选择评分范围",
+                            min_value=min_rating,
+                            max_value=max_rating,
+                            value=(min_rating, max_rating),
+                            step=0.5
+                        )
+                
+                with col3:
+                    # 文本长度筛选
+                    st.write("文本长度筛选")
+                    df['text_length'] = df['content'].str.len()
+                    min_length = int(df['text_length'].min())
+                    max_length = int(df['text_length'].max())
+                    
+                    length_range = st.slider(
+                        "选择文本长度范围",
+                        min_value=min_length,
+                        max_value=max_length,
+                        value=(min_length, max_length)
+                    )
+                
+                # 关键词搜索
+                search_term = st.text_input("搜索关键词（支持多个关键词，用空格分隔）")
+                
+                # 应用筛选条件
+                filtered_df = df.copy()
+                
+                # 时间筛选
+                filtered_df = filtered_df[
+                    (filtered_df['timestamp'].dt.date >= start_date) &
+                    (filtered_df['timestamp'].dt.date <= end_date)
+                ]
+                
+                # 评分筛选
+                if 'rating' in df.columns:
+                    filtered_df = filtered_df[
+                        (filtered_df['rating'] >= rating_range[0]) &
+                        (filtered_df['rating'] <= rating_range[1])
+                    ]
+                
+                # 文本长度筛选
+                filtered_df = filtered_df[
+                    (filtered_df['text_length'] >= length_range[0]) &
+                    (filtered_df['text_length'] <= length_range[1])
+                ]
+                
+                # 关键词搜索
+                if search_term:
+                    keywords = search_term.split()
+                    search_mask = filtered_df['content'].str.contains('|'.join(keywords), case=False, na=False)
+                    filtered_df = filtered_df[search_mask]
+                
+                # 显示筛选后的数据统计
+                st.subheader("筛选结果统计")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric(
+                        "筛选后数据量",
+                        f"{len(filtered_df)} 条",
+                        f"占比 {len(filtered_df)/len(df):.1%}"
+                    )
+                
+                with col2:
+                    if 'rating' in filtered_df.columns:
+                        st.metric(
+                            "平均评分",
+                            f"{filtered_df['rating'].mean():.1f}",
+                            f"原均分 {df['rating'].mean():.1f}"
+                        )
+                
+                # 显示筛选后的数据预览
+                st.subheader("筛选后的数据预览")
+                st.write(filtered_df.head())
+                
+                # 添加下载筛选后的数据功能
+                if st.download_button(
+                    "下载筛选后的数据",
+                    data=filtered_df.to_csv(index=False),
+                    file_name="filtered_data.csv",
+                    mime="text/csv"
+                ):
+                    st.success("数据下载成功！")
                 
             except Exception as e:
                 st.error(f"处理CSV文件时出现错误: {str(e)}")
-                st.info("请确保CSV文件格式正确，并且包含所需的列")
+                st.info("请确保CSV文件格式正确, 并且包含所需的列")
     
     # 初始化分析器
     sentiment_analyzer = SentimentAnalyzer(language)
