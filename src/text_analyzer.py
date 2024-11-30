@@ -207,105 +207,274 @@ class SentimentAnalyzer(TextAnalyzer):
         analyzer = SentimentAnalyzer(language)
         return analyzer.analyze_batch(texts, batch_size)
 
-class KeywordAnalyzer(TextAnalyzer):
-    """关键词分析器"""
+# class KeywordAnalyzer(TextAnalyzer):
+#     """关键词分析器"""
     
-    def __init__(self, language: str = 'chinese'):
-        """
-        初始化关键词分析器
+#     def __init__(self, language: str = 'chinese'):
+#         """
+#         初始化关键词分析器
         
-        Args:
-            language: 文本语言，支持 'chinese' 或 'english'
-        """
+#         Args:
+#             language: 文本语言，支持 'chinese' 或 'english'
+#         """
+#         super().__init__(language)
+#         self.stop_words = load_stopwords(language)
+        
+#         # 配置TF-IDF分析器
+#         self.tfidf = TfidfVectorizer(
+#             max_features=1000,
+#             stop_words=self.stop_words,
+#             tokenizer=self._tokenize_text
+#         )
+    
+#     def _tokenize_text(self, text: str) -> List[str]:
+#         """
+#         文本分词
+        
+#         Args:
+#             text: 输入文本
+            
+#         Returns:
+#             List[str]: 分词结果
+#         """
+#         if self.language == 'chinese':
+#             return list(jieba.cut(text))
+#         else:
+#             from nltk.tokenize import word_tokenize
+#             return word_tokenize(text.lower())
+    
+#     @st.cache_data
+#     def extract_keywords(self, texts: List[str], top_n: int = 20) -> Dict[str, float]:
+#         """
+#         提取关键词及其权重
+        
+#         Args:
+#             texts: 评论文本列表
+#             top_n: 返回前N个关键词
+            
+#         Returns:
+#             Dict[str, float]: 关键词及其权重
+#         """
+#         try:
+#             if self.language == 'chinese':
+#                 # 使用jieba的TF-IDF实现
+#                 keywords = {}
+#                 for text in texts:
+#                     for kw, weight in jieba.analyse.extract_tags(text, topK=top_n, withWeight=True):
+#                         if kw in keywords:
+#                             keywords[kw] += weight
+#                         else:
+#                             keywords[kw] = weight
+#             else:
+#                 # 使用sklearn的TF-IDF实现
+#                 tfidf_matrix = self.tfidf.fit_transform(texts)
+#                 feature_names = self.tfidf.get_feature_names_out()
+                
+#                 # 计算每个词的平均TF-IDF值
+#                 keywords = {}
+#                 for idx, word in enumerate(feature_names):
+#                     weight = np.mean(tfidf_matrix[:, idx].toarray())
+#                     keywords[word] = weight
+            
+#             # 排序并返回前N个关键词
+#             sorted_keywords = dict(sorted(keywords.items(), 
+#                                        key=lambda x: x[1], 
+#                                        reverse=True)[:top_n])
+#             return sorted_keywords
+            
+#         except Exception as e:
+#             st.error(f"关键词提取失败：{str(e)}")
+#             return {}
+    
+#     @st.cache_data
+#     def extract_keywords_by_rating(self, df: pd.DataFrame, top_n: int = 20) -> Dict[str, Dict[str, float]]:
+#         """
+#         按评分分类提取关键词
+        
+#         Args:
+#             df: 包含评论文本和评分的DataFrame
+#             top_n: 每类返回前N个关键词
+            
+#         Returns:
+#             Dict: 各评分段的关键词及权重
+#         """
+#         try:
+#             # 将评分分为高分低分
+#             high_ratings = df[df['rating'] >= 4]['review_text'].tolist()
+#             low_ratings = df[df['rating'] <= 2]['review_text'].tolist()
+            
+#             # 分别提取关键词
+#             positive_keywords = self.extract_keywords(high_ratings, top_n)
+#             negative_keywords = self.extract_keywords(low_ratings, top_n)
+            
+#             return {
+#                 'positive': positive_keywords,
+#                 'negative': negative_keywords
+#             }
+            
+#         except Exception as e:
+#             st.error(f"评分关键词分析失败：{str(e)}")
+#             return {'positive': {}, 'negative': {}}
+    
+#     @st.cache_data
+#     def calculate_keyword_trends(self, df: pd.DataFrame, 
+#                                top_keywords: List[str], 
+#                                time_window: str = 'M') -> pd.DataFrame:
+#         """
+#         计算关键词随时间的变化趋势
+        
+#         Args:
+#             df: 包含评论文本和时间戳的DataFrame
+#             top_keywords: 要追踪的关键词列表
+#             time_window: 时间窗口 ('D'=日, 'W'=周, 'M'=月)
+            
+#         Returns:
+#             pd.DataFrame: 关键词趋势数据
+#         """
+#         try:
+#             # 按时间窗口分组
+#             grouped = df.groupby(pd.Grouper(key='timestamp', freq=time_window))
+            
+#             # 初始化结果DataFrame
+#             trend_data = []
+            
+#             # 计算每个时间窗口的关键词频率
+#             for time, group in grouped:
+#                 if len(group) == 0:
+#                     continue
+                    
+#                 # 提取该时间窗口的关键词
+#                 texts = group['review_text'].tolist()
+#                 keywords = self.extract_keywords(texts, len(top_keywords))
+                
+#                 # 记录每个关注关键词频率
+#                 for keyword in top_keywords:
+#                     trend_data.append({
+#                         'timestamp': time,
+#                         'keyword': keyword,
+#                         'frequency': keywords.get(keyword, 0)
+#                     })
+            
+#             return pd.DataFrame(trend_data)
+            
+#         except Exception as e:
+#             st.error(f"关键词趋势分析失败：{str(e)}")
+#             return pd.DataFrame()
+
+
+# 修改text_analyzer.py中的KeywordAnalyzer类
+
+class KeywordAnalyzer(TextAnalyzer):
+    def __init__(self, language: str = 'chinese'):
         super().__init__(language)
         self.stop_words = load_stopwords(language)
         
-        # 配置TF-IDF分析器
-        self.tfidf = TfidfVectorizer(
-            max_features=1000,
-            stop_words=self.stop_words,
-            tokenizer=self._tokenize_text
-        )
-    
-    def _tokenize_text(self, text: str) -> List[str]:
-        """
-        文本分词
+        # 添加评论相关的停用词
+        self.stop_words.update({'电影', '片子', '导演', '拍摄', '#', 'PYIFF'})
         
-        Args:
-            text: 输入文本
-            
-        Returns:
-            List[str]: 分词结果
-        """
-        if self.language == 'chinese':
-            return list(jieba.cut(text))
-        else:
-            from nltk.tokenize import word_tokenize
-            return word_tokenize(text.lower())
+        # 配置jieba分词
+        import jieba.analyse
+        jieba.analyse.set_stop_words('utils/chinese_stopwords.txt')
+        
+        # 自定义词典
+        for word in ['唐人街', '华裔']:
+            jieba.add_word(word)
     
-    @st.cache_data
+    def _preprocess_text(self, text: str) -> str:
+        """预处理文本"""
+        # 移除#号标签
+        text = re.sub(r'#.*?#', '', text)
+        # 移除多余空格
+        text = re.sub(r'\s+', ' ', text)
+        # 移除URL
+        text = re.sub(r'http[s]?://\S+', '', text)
+        return text.strip()
+    
     def extract_keywords(self, texts: List[str], top_n: int = 20) -> Dict[str, float]:
-        """
-        提取关键词及其权重
-        
-        Args:
-            texts: 评论文本列表
-            top_n: 返回前N个关键词
-            
-        Returns:
-            Dict[str, float]: 关键词及其权重
-        """
+        """提取关键词及其权重"""
         try:
-            if self.language == 'chinese':
-                # 使用jieba的TF-IDF实现
-                keywords = {}
-                for text in texts:
-                    for kw, weight in jieba.analyse.extract_tags(text, topK=top_n, withWeight=True):
-                        if kw in keywords:
-                            keywords[kw] += weight
-                        else:
-                            keywords[kw] = weight
-            else:
-                # 使用sklearn的TF-IDF实现
-                tfidf_matrix = self.tfidf.fit_transform(texts)
-                feature_names = self.tfidf.get_feature_names_out()
-                
-                # 计算每个词的平均TF-IDF值
-                keywords = {}
-                for idx, word in enumerate(feature_names):
-                    weight = np.mean(tfidf_matrix[:, idx].toarray())
-                    keywords[word] = weight
+            # 预处理文本
+            processed_texts = [self._preprocess_text(text) for text in texts]
+            combined_text = ' '.join(processed_texts)
             
-            # 排序并返回前N个关键词
-            sorted_keywords = dict(sorted(keywords.items(), 
-                                       key=lambda x: x[1], 
-                                       reverse=True)[:top_n])
-            return sorted_keywords
+            # 使用jieba提取关键词
+            keywords = {}
+            for kw, weight in jieba.analyse.extract_tags(
+                combined_text,
+                topK=top_n,
+                withWeight=True,
+                allowPOS=('n', 'nr', 'ns', 'nt', 'nz', 'v', 'vn')  # 允许更多词性
+            ):
+                if kw not in self.stop_words and len(kw) > 1:  # 过滤单字词
+                    keywords[kw] = float(weight)
+            
+            # 标准化权重
+            if keywords:
+                max_weight = max(keywords.values())
+                keywords = {k: float(v/max_weight) for k, v in keywords.items()}
+            
+            return keywords
             
         except Exception as e:
-            st.error(f"关键词提取失败：{str(e)}")
+            st.error(f"关键词提取失败: {str(e)}")
             return {}
     
-    @st.cache_data
-    def extract_keywords_by_rating(self, df: pd.DataFrame, top_n: int = 20) -> Dict[str, Dict[str, float]]:
-        """
-        按评分分类提取关键词
-        
-        Args:
-            df: 包含评论文本和评分的DataFrame
-            top_n: 每类返回前N个关键词
-            
-        Returns:
-            Dict: 各评分段的关键词及权重
-        """
+    def calculate_keyword_trends(self, df: pd.DataFrame, 
+                               top_keywords: List[str], 
+                               time_window: str = 'M') -> pd.DataFrame:
+        """计算关键词趋势"""
         try:
-            # 将评分分为高分低分
-            high_ratings = df[df['rating'] >= 4]['review_text'].tolist()
-            low_ratings = df[df['rating'] <= 2]['review_text'].tolist()
+            df = df.copy()
             
-            # 分别提取关键词
-            positive_keywords = self.extract_keywords(high_ratings, top_n)
-            negative_keywords = self.extract_keywords(low_ratings, top_n)
+            # 确保timestamp列是datetime类型
+            df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y/%m/%d %H:%M')
+            
+            # 按时间窗口和category分组
+            grouped = df.groupby([
+                pd.Grouper(key='timestamp', freq=time_window),
+                'category'
+            ])
+            
+            trend_data = []
+            
+            for (time, category), group in grouped:
+                if len(group) == 0:
+                    continue
+                
+                # 提取关键词
+                texts = group['content'].tolist()
+                keywords = self.extract_keywords(texts, len(top_keywords))
+                
+                # 记录频率
+                for keyword in top_keywords:
+                    trend_data.append({
+                        'timestamp': time,
+                        'category': category,
+                        'keyword': keyword,
+                        'frequency': keywords.get(keyword, 0.0)
+                    })
+            
+            return pd.DataFrame(trend_data)
+            
+        except Exception as e:
+            st.error(f"趋势分析失败: {str(e)}")
+            return pd.DataFrame()
+    
+    def extract_keywords_by_rating(self, df: pd.DataFrame, top_n: int = 20) -> Dict[str, Dict[str, float]]:
+        """按评分分类提取关键词"""
+        try:
+            df = df.copy()
+            
+            # 根据评分和情感类别分组
+            positive_mask = (df['rating'] >= 4) | (df['category'].str.contains('positive', case=False))
+            negative_mask = (df['rating'] <= 2) | (df['category'].str.contains('negative', case=False))
+            
+            positive_texts = df[positive_mask]['content'].tolist()
+            negative_texts = df[negative_mask]['content'].tolist()
+            
+            # 提取关键词
+            positive_keywords = self.extract_keywords(positive_texts, top_n) if positive_texts else {}
+            negative_keywords = self.extract_keywords(negative_texts, top_n) if negative_texts else {}
             
             return {
                 'positive': positive_keywords,
@@ -313,53 +482,8 @@ class KeywordAnalyzer(TextAnalyzer):
             }
             
         except Exception as e:
-            st.error(f"评分关键词分析失败：{str(e)}")
+            st.error(f"评分关键词分析失败: {str(e)}")
             return {'positive': {}, 'negative': {}}
-    
-    @st.cache_data
-    def calculate_keyword_trends(self, df: pd.DataFrame, 
-                               top_keywords: List[str], 
-                               time_window: str = 'M') -> pd.DataFrame:
-        """
-        计算关键词随时间的变化趋势
-        
-        Args:
-            df: 包含评论文本和时间戳的DataFrame
-            top_keywords: 要追踪的关键词列表
-            time_window: 时间窗口 ('D'=日, 'W'=周, 'M'=月)
-            
-        Returns:
-            pd.DataFrame: 关键词趋势数据
-        """
-        try:
-            # 按时间窗口分组
-            grouped = df.groupby(pd.Grouper(key='timestamp', freq=time_window))
-            
-            # 初始化结果DataFrame
-            trend_data = []
-            
-            # 计算每个时间窗口的关键词频率
-            for time, group in grouped:
-                if len(group) == 0:
-                    continue
-                    
-                # 提取该时间窗口的关键词
-                texts = group['review_text'].tolist()
-                keywords = self.extract_keywords(texts, len(top_keywords))
-                
-                # 记录每个关注关键词频率
-                for keyword in top_keywords:
-                    trend_data.append({
-                        'timestamp': time,
-                        'keyword': keyword,
-                        'frequency': keywords.get(keyword, 0)
-                    })
-            
-            return pd.DataFrame(trend_data)
-            
-        except Exception as e:
-            st.error(f"关键词趋势分析失败：{str(e)}")
-            return pd.DataFrame()
 
 class TopicAnalyzer(TextAnalyzer):
     """主题分析器"""

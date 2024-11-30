@@ -173,157 +173,356 @@ class SentimentVisualizer(Visualizer):
         
         return fig
 
-class KeywordVisualizer(Visualizer):
-    """关键词可视化器"""
+# class KeywordVisualizer(Visualizer):
+#     """关键词可视化器"""
     
-    def __init__(self):
-        """初始化关键词可视化器"""
-        super().__init__()
-        self.color_scheme = {
-            'positive': '#2ecc71',
-            'negative': '#e74c3c',
-            'neutral': '#95a5a6'
-        }
+#     def __init__(self):
+#         """初始化关键词可视化器"""
+#         super().__init__()
+#         self.color_scheme = {
+#             'positive': '#2ecc71',
+#             'negative': '#e74c3c',
+#             'neutral': '#95a5a6'
+#         }
     
-    def create_wordcloud(self, keywords: Dict[str, float], 
-                        title: str = "关键词云图") -> go.Figure:
-        """
-        生成词云图
+#     def create_wordcloud(self, keywords: Dict[str, float], 
+#                         title: str = "关键词云图") -> go.Figure:
+#         """
+#         生成词云图
         
-        Args:
-            keywords: 关键词及其权重
-            title: 图表标题
+#         Args:
+#             keywords: 关键词及其权重
+#             title: 图表标题
             
-        Returns:
-            go.Figure: Plotly图表对象
-        """
-        try:
-            # 创建词云对象
-            wc = WordCloud(
-                width=800,
-                height=400,
-                background_color='white',
-                font_path='simhei.ttf'  # 使用系统中文字体
-            )
+#         Returns:
+#             go.Figure: Plotly图表对象
+#         """
+#         try:
+#             # 创建词云对象
+#             wc = WordCloud(
+#                 width=800,
+#                 height=400,
+#                 background_color='white',
+#                 font_path='simhei.ttf'  # 使用系统中文字体
+#             )
             
-            # 生成词云
-            wc.generate_from_frequencies(keywords)
+#             # 生成词云
+#             wc.generate_from_frequencies(keywords)
             
-            # 转换为图像
-            img = wc.to_image()
+#             # 转换为图像
+#             img = wc.to_image()
             
-            # 将图像转换为base64字符串
-            img_buffer = io.BytesIO()
-            img.save(img_buffer, format='PNG')
-            img_str = base64.b64encode(img_buffer.getvalue()).decode()
+#             # 将图像转换为base64字符串
+#             img_buffer = io.BytesIO()
+#             img.save(img_buffer, format='PNG')
+#             img_str = base64.b64encode(img_buffer.getvalue()).decode()
             
-            # 创建Plotly图表
-            fig = go.Figure()
+#             # 创建Plotly图表
+#             fig = go.Figure()
             
-            fig.add_layout_image(
-                dict(
-                    source=f'data:image/png;base64,{img_str}',
-                    x=0,
-                    y=1,
-                    sizex=1,
-                    sizey=1,
-                    sizing="stretch",
-                    layer="below"
-                )
-            )
+#             fig.add_layout_image(
+#                 dict(
+#                     source=f'data:image/png;base64,{img_str}',
+#                     x=0,
+#                     y=1,
+#                     sizex=1,
+#                     sizey=1,
+#                     sizing="stretch",
+#                     layer="below"
+#                 )
+#             )
             
-            fig.update_layout(
-                title=title,
-                showlegend=False,
-                width=800,
-                height=400,
-                margin=dict(l=0, r=0, t=30, b=0)
-            )
+#             fig.update_layout(
+#                 title=title,
+#                 showlegend=False,
+#                 width=800,
+#                 height=400,
+#                 margin=dict(l=0, r=0, t=30, b=0)
+#             )
             
-            return fig
+#             return fig
             
-        except Exception as e:
-            st.error(f"词云图生成失败：{str(e)}")
-            return go.Figure()
+#         except Exception as e:
+#             st.error(f"词云图生成失败：{str(e)}")
+#             return go.Figure()
     
-    def create_keyword_trend_chart(self, trend_df: pd.DataFrame) -> go.Figure:
-        """
-        生成关键词趋势图
+#     def create_keyword_trend_chart(self, trend_df: pd.DataFrame) -> go.Figure:
+#         """
+#         生成关键词趋势图
         
-        Args:
-            trend_df: 包含时间戳和关键词频率的DataFrame
+#         Args:
+#             trend_df: 包含时间戳和关键词频率的DataFrame
             
-        Returns:
-            go.Figure: Plotly图表对象
-        """
-        try:
-            fig = go.Figure()
+#         Returns:
+#             go.Figure: Plotly图表对象
+#         """
+#         try:
+#             fig = go.Figure()
             
-            # 为每个关键词添加一条线
-            for keyword in trend_df['keyword'].unique():
-                keyword_data = trend_df[trend_df['keyword'] == keyword]
+#             # 为每个关键词添加一条线
+#             for keyword in trend_df['keyword'].unique():
+#                 keyword_data = trend_df[trend_df['keyword'] == keyword]
                 
-                fig.add_trace(go.Scatter(
-                    x=keyword_data['timestamp'],
-                    y=keyword_data['frequency'],
-                    name=keyword,
-                    mode='lines+markers'
-                ))
+#                 fig.add_trace(go.Scatter(
+#                     x=keyword_data['timestamp'],
+#                     y=keyword_data['frequency'],
+#                     name=keyword,
+#                     mode='lines+markers'
+#                 ))
             
+#             fig.update_layout(
+#                 title='关键词趋势变化',
+#                 xaxis_title='时间',
+#                 yaxis_title='频率',
+#                 hovermode='x unified',
+#                 showlegend=True
+#             )
+            
+#             return fig
+            
+#         except Exception as e:
+#             st.error(f"趋势图生成失败：{str(e)}")
+#             return go.Figure()
+    
+#     def create_rating_keyword_comparison(self, keywords_by_rating: Dict[str, Dict[str, float]]) -> go.Figure:
+#         """
+#         生成评分关键词对比图
+        
+#         Args:
+#             keywords_by_rating: 各评分段的关键词及权重
+            
+#         Returns:
+#             go.Figure: Plotly图表对象
+#         """
+#         try:
+#             fig = go.Figure()
+            
+#             # 添加正面评价关键词
+#             fig.add_trace(go.Bar(
+#                 x=list(keywords_by_rating['positive'].keys()),
+#                 y=list(keywords_by_rating['positive'].values()),
+#                 name='正面评价',
+#                 marker_color=self.color_scheme['positive']
+#             ))
+            
+#             # 添加负面评价关键词
+#             fig.add_trace(go.Bar(
+#                 x=list(keywords_by_rating['negative'].keys()),
+#                 y=[-v for v in keywords_by_rating['negative'].values()],
+#                 name='负面评价',
+#                 marker_color=self.color_scheme['negative']
+#             ))
+            
+#             fig.update_layout(
+#                 title='正负面评价关键词对比',
+#                 barmode='overlay',
+#                 yaxis_title='权重',
+#                 showlegend=True
+#             )
+            
+#             return fig
+            
+#         except Exception as e:
+#             st.error(f"对比图生成失败：{str(e)}")
+#             return go.Figure()
+
+
+class KeywordVisualizer(Visualizer):
+    def create_wordcloud(self, keywords: Dict[str, float],
+                        title: str = "关键词云图") -> go.Figure:
+        """创建词云图"""
+        try:
+            if not keywords:
+                raise ValueError("没有关键词数据")
+            
+            # 准备数据
+            words = list(keywords.keys())
+            weights = list(keywords.values())
+            
+            # 计算字体大小和颜色
+            min_size = 15
+            max_size = 50
+            sizes = [min_size + (max_size - min_size) * w for w in weights]
+            
+            # 创建颜色映射
+            colors = px.colors.sequential.Viridis
+            color_indices = np.linspace(0, len(colors)-1, len(words)).astype(int)
+            
+            # 创建散点图
+            fig = go.Figure()
+            
+            # 使用极坐标分布词语
+            theta = np.linspace(0, 2*np.pi, len(words))
+            radius = np.random.uniform(0.3, 1, len(words))
+            x_pos = radius * np.cos(theta)
+            y_pos = radius * np.sin(theta)
+            
+            # 添加文本散点
+            fig.add_trace(go.Scatter(
+                x=x_pos,
+                y=y_pos,
+                text=words,
+                mode='text',
+                textfont=dict(
+                    size=sizes,
+                    color=[colors[i] for i in color_indices]
+                ),
+                hoverinfo='text',
+                hovertemplate='%{text}<br>权重: %{customdata:.2f}<extra></extra>',
+                customdata=weights
+            ))
+            
+            # 更新布局
             fig.update_layout(
-                title='关键词趋势变化',
+                title=dict(
+                    text=title,
+                    x=0.5,
+                    y=0.95
+                ),
+                showlegend=False,
+                xaxis=dict(
+                    showgrid=False,
+                    zeroline=False,
+                    showticklabels=False,
+                    range=[-1.2, 1.2]
+                ),
+                yaxis=dict(
+                    showgrid=False,
+                    zeroline=False,
+                    showticklabels=False,
+                    range=[-1.2, 1.2],
+                    scaleanchor='x',
+                    scaleratio=1
+                ),
+                width=800,
+                height=600,
+                paper_bgcolor='white',
+                plot_bgcolor='white'
+            )
+            
+            return fig
+        
+        except Exception as e:
+            st.error(f"词云图生成失败: {str(e)}")
+            return go.Figure()
+
+    def create_keyword_trend_chart(self, trend_df: pd.DataFrame) -> go.Figure:
+        """生成关键词趋势图"""
+        try:
+            if trend_df.empty:
+                raise ValueError("趋势数据为空")
+            
+            fig = go.Figure()
+            
+            # 为每个关键词和类别组合创建一条线
+            for category in trend_df['category'].unique():
+                for keyword in trend_df['keyword'].unique():
+                    mask = (trend_df['category'] == category) & (trend_df['keyword'] == keyword)
+                    data = trend_df[mask]
+                    
+                    if not data.empty:
+                        name = f"{keyword} ({category})"
+                        fig.add_trace(go.Scatter(
+                            x=data['timestamp'],
+                            y=data['frequency'],
+                            name=name,
+                            mode='lines+markers',
+                            line=dict(width=2),
+                            marker=dict(size=6)
+                        ))
+            
+            # 更新布局
+            fig.update_layout(
+                title=dict(
+                    text='关键词趋势变化',
+                    x=0.5,
+                    y=0.95
+                ),
                 xaxis_title='时间',
-                yaxis_title='频率',
+                yaxis_title='相对频率',
                 hovermode='x unified',
-                showlegend=True
+                showlegend=True,
+                width=900,
+                height=600,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                ),
+                margin=dict(t=100)
             )
             
             return fig
             
         except Exception as e:
-            st.error(f"趋势图生成失败：{str(e)}")
+            st.error(f"趋势图生成失败: {str(e)}")
             return go.Figure()
-    
-    def create_rating_keyword_comparison(self, keywords_by_rating: Dict[str, Dict[str, float]]) -> go.Figure:
-        """
-        生成评分关键词对比图
-        
-        Args:
-            keywords_by_rating: 各评分段的关键词及权重
-            
-        Returns:
-            go.Figure: Plotly图表对象
-        """
+
+    def create_rating_keyword_comparison(self, 
+                                       keywords_by_rating: Dict[str, Dict[str, float]]) -> go.Figure:
+        """生成评分关键词对比图"""
         try:
+            if not keywords_by_rating.get('positive') and not keywords_by_rating.get('negative'):
+                raise ValueError("关键词数据为空")
+            
             fig = go.Figure()
             
             # 添加正面评价关键词
+            pos_words = list(keywords_by_rating['positive'].keys())
+            pos_weights = list(keywords_by_rating['positive'].values())
+            
             fig.add_trace(go.Bar(
-                x=list(keywords_by_rating['positive'].keys()),
-                y=list(keywords_by_rating['positive'].values()),
+                x=pos_words,
+                y=pos_weights,
                 name='正面评价',
-                marker_color=self.color_scheme['positive']
+                marker_color='rgb(46, 204, 113)',
+                text=pos_weights,
+                texttemplate='%{text:.2f}',
+                textposition='outside'
             ))
             
             # 添加负面评价关键词
+            neg_words = list(keywords_by_rating['negative'].keys())
+            neg_weights = [-w for w in keywords_by_rating['negative'].values()]
+            
             fig.add_trace(go.Bar(
-                x=list(keywords_by_rating['negative'].keys()),
-                y=[-v for v in keywords_by_rating['negative'].values()],
+                x=neg_words,
+                y=neg_weights,
                 name='负面评价',
-                marker_color=self.color_scheme['negative']
+                marker_color='rgb(231, 76, 60)',
+                text=[-w for w in neg_weights],
+                texttemplate='%{text:.2f}',
+                textposition='outside'
             ))
             
+            # 更新布局
             fig.update_layout(
-                title='正负面评价关键词对比',
-                barmode='overlay',
+                title=dict(
+                    text='正负面评价关键词对比',
+                    x=0.5,
+                    y=0.95
+                ),
+                xaxis_title='关键词',
                 yaxis_title='权重',
-                showlegend=True
+                barmode='relative',
+                showlegend=True,
+                width=900,
+                height=600,
+                margin=dict(t=100, b=100),
+                yaxis=dict(
+                    tickformat='.2f'
+                )
             )
+            
+            # 添加水平参考线
+            fig.add_hline(y=0, line_dash="dash", line_color="gray")
             
             return fig
             
         except Exception as e:
-            st.error(f"对比图生成失败：{str(e)}")
+            st.error(f"对比图生成失败: {str(e)}")
             return go.Figure()
 
 class TopicVisualizer(Visualizer):

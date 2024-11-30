@@ -9,6 +9,8 @@ from src.data_processor import DataProcessor
 from src.text_analyzer import SentimentAnalyzer, KeywordAnalyzer, TopicAnalyzer, InsightAnalyzer
 from src.visualizer import Visualizer, SentimentVisualizer, KeywordVisualizer, TopicVisualizer, InsightVisualizer
 
+from utils.jieba_config import initialize_jieba
+
 def display_statistics(stats: dict):
     """显示统计指标"""
     col1, col2, col3 = st.columns(3)
@@ -325,6 +327,13 @@ def main():
         page_icon="📊",
         layout="wide"
     )
+
+        # 初始化jieba
+    try:
+        initialize_jieba()
+    except Exception as e:
+        st.error(f"jieba初始化失败: {str(e)}")
+        return
     
     # 页面问题
     st.title("顾客评论分析系统")
