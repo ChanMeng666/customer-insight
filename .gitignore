@@ -29,6 +29,5 @@ build/
 *.pt
 *.pth
 *.h5
-*.csv
 *.json
 *.xlsx
