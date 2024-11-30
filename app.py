@@ -10,6 +10,8 @@ from src.text_analyzer import SentimentAnalyzer, KeywordAnalyzer, TopicAnalyzer,
 from src.visualizer import Visualizer, SentimentVisualizer, KeywordVisualizer, TopicVisualizer, InsightVisualizer
 
 from utils.jieba_config import initialize_jieba
+import plotly.express as px
+import plotly.graph_objects as go
 
 def display_statistics(stats: dict):
     """显示统计指标"""
@@ -376,6 +378,201 @@ def show_insights_analysis(df: pd.DataFrame, language: str):
                         f"{insights['correlations']['consistency']:.1%}"
                     )
 
+
+
+def create_custom_visualizations(df: pd.DataFrame):
+    """创建自定义可视化图表"""
+    # 图表类型选择
+    chart_type = st.selectbox(
+        "选择图表类型",
+        ["时间序列图", "评分分布图", "文本长度分布图", "自定义分组统计"]
+    )
+    
+    # 根据选择的图表类型显示不同的选项和图表
+    if chart_type == "时间序列图":
+        # 时间粒度选择
+        time_unit = st.selectbox(
+            "选择时间粒度",
+            ["日", "周", "月"],
+            key="time_series_unit"
+        )
+        
+        # 选择要展示的指标
+        metrics = st.multiselect(
+            "选择要展示的指标",
+            ["评论数量", "平均评分", "平均文本长度"],
+            default=["评论数量"]
+        )
+        
+        # 创建时间序列图表
+        try:
+            # 设置时间索引
+            df['date'] = pd.to_datetime(df['timestamp']).dt.date
+            if time_unit == "周":
+                df['date'] = pd.to_datetime(df['timestamp']).dt.to_period('W').astype(str)
+            elif time_unit == "月":
+                df['date'] = pd.to_datetime(df['timestamp']).dt.to_period('M').astype(str)
+            
+            # 准备数据
+            fig = go.Figure()
+            
+            if "评论数量" in metrics:
+                counts = df.groupby('date').size()
+                fig.add_trace(go.Scatter(
+                    x=counts.index, 
+                    y=counts.values,
+                    name="评论数量",
+                    mode='lines+markers'
+                ))
+            
+            if "平均评分" in metrics:
+                avg_ratings = df.groupby('date')['rating'].mean()
+                fig.add_trace(go.Scatter(
+                    x=avg_ratings.index,
+                    y=avg_ratings.values,
+                    name="平均评分",
+                    mode='lines+markers',
+                    yaxis="y2"
+                ))
+            
+            if "平均文本长度" in metrics:
+                avg_lengths = df.groupby('date')['text_length'].mean()
+                fig.add_trace(go.Scatter(
+                    x=avg_lengths.index,
+                    y=avg_lengths.values,
+                    name="平均文本长度",
+                    mode='lines+markers',
+                    yaxis="y3"
+                ))
+            
+            # 更新布局
+            fig.update_layout(
+                title="时间序列趋势图",
+                xaxis_title="日期",
+                yaxis_title="评论数量",
+                yaxis2=dict(
+                    title="平均评分",
+                    overlaying="y",
+                    side="right"
+                ),
+                yaxis3=dict(
+                    title="平均文本长度",
+                    overlaying="y",
+                    side="right",
+                    position=0.95
+                )
+            )
+            
+            st.plotly_chart(fig)
+            
+        except Exception as e:
+            st.error(f"生成时间序列图表时出错: {str(e)}")
+    
+    elif chart_type == "评分分布图":
+        # 图表子类型选择
+        subtype = st.selectbox(
+            "选择图表子类型",
+            ["柱状图", "饼图", "箱线图"],
+            key="rating_dist_type"
+        )
+        
+        try:
+            if subtype == "柱状图":
+                rating_counts = df['rating'].value_counts().sort_index()
+                fig = px.bar(
+                    x=rating_counts.index,
+                    y=rating_counts.values,
+                    title="评分分布",
+                    labels={'x': '评分', 'y': '数量'}
+                )
+                
+            elif subtype == "饼图":
+                rating_counts = df['rating'].value_counts()
+                fig = px.pie(
+                    values=rating_counts.values,
+                    names=rating_counts.index,
+                    title="评分占比"
+                )
+                
+            elif subtype == "箱线图":
+                fig = px.box(
+                    df,
+                    y="rating",
+                    title="评分分布箱线图"
+                )
+            
+            st.plotly_chart(fig)
+            
+        except Exception as e:
+            st.error(f"生成评分分布图表时出错: {str(e)}")
+    
+    elif chart_type == "文本长度分布图":
+        # 选择分组数
+        num_bins = st.slider("选择分组数", 10, 50, 20)
+        
+        try:
+            fig = px.histogram(
+                df,
+                x="text_length",
+                nbins=num_bins,
+                title="文本长度分布",
+                labels={'text_length': '文本长度', 'count': '数量'}
+            )
+            
+            st.plotly_chart(fig)
+            
+        except Exception as e:
+            st.error(f"生成文本长度分布图表时出错: {str(e)}")
+    
+    elif chart_type == "自定义分组统计":
+        # 选择分组字段
+        group_col = st.selectbox(
+            "选择分组字段",
+            ["category", "rating", "sentiment"],
+            key="custom_group_col"
+        )
+        
+        # 选择统计指标
+        agg_metric = st.selectbox(
+            "选择统计指标",
+            ["数量", "平均文本长度", "平均情感得分"],
+            key="custom_agg_metric"
+        )
+        
+        try:
+            if agg_metric == "数量":
+                counts = df[group_col].value_counts()
+                fig = px.bar(
+                    x=counts.index,
+                    y=counts.values,
+                    title=f"按{group_col}分组的评论数量",
+                    labels={'x': group_col, 'y': '数量'}
+                )
+                
+            elif agg_metric == "平均文本长度":
+                avg_lengths = df.groupby(group_col)['text_length'].mean()
+                fig = px.bar(
+                    x=avg_lengths.index,
+                    y=avg_lengths.values,
+                    title=f"按{group_col}分组的平均文本长度",
+                    labels={'x': group_col, 'y': '平均长度'}
+                )
+                
+            elif agg_metric == "平均情感得分":
+                avg_sentiment = df.groupby(group_col)['sentiment_score'].mean()
+                fig = px.bar(
+                    x=avg_sentiment.index,
+                    y=avg_sentiment.values,
+                    title=f"按{group_col}分组的平均情感得分",
+                    labels={'x': group_col, 'y': '平均情感得分'}
+                )
+            
+            st.plotly_chart(fig)
+            
+        except Exception as e:
+            st.error(f"生成自定义分组统计图表时出错: {str(e)}")
+
+
 def main():
     # 设置页面配置
     st.set_page_config(
@@ -713,7 +910,7 @@ def main():
         else:
             try:
                 st.subheader("自定义图表")
-                # 这里可以添加自��义可视化的代码
+                create_custom_visualizations(filtered_df)
             except Exception as e:
                 st.error(f"可视化过程出错：{str(e)}")
 
