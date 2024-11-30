@@ -266,6 +266,61 @@ def show_topic_analysis(df: pd.DataFrame, language: str):
                 ):
                     st.success("分析结果已下载")
 
+# def show_insights_analysis(df: pd.DataFrame, language: str):
+#     """
+#     显示评论洞察分析页面
+    
+#     Args:
+#         df: 数据框
+#         language: 文本语言
+#     """
+#     st.header("评论深度洞察")
+    
+#     # 初始化分析器
+#     insight_analyzer = InsightAnalyzer(language)
+#     insight_visualizer = InsightVisualizer()
+    
+#     if st.button("开始分析", key="start_insight_analysis"):
+#         with st.spinner("正在进行深度分析..."):
+#             # 提取洞察
+#             insights = insight_analyzer.extract_insights(df)
+            
+#             if insights:
+#                 # 显示异常检测结果
+#                 st.subheader("异常评论检测")
+                
+#                 # 显示异常统计
+#                 col1, col2 = st.columns(2)
+#                 with col1:
+#                     st.metric(
+#                         "异常评论数量",
+#                         insights['anomalies']['total']
+#                     )
+#                 with col2:
+#                     st.metric(
+#                         "异常评论比例",
+#                         f"{insights['anomalies']['total']/len(df):.1%}"
+#                     )
+                
+#                 # 显示异常散点图
+#                 st.plotly_chart(
+#                     insight_visualizer.create_anomaly_scatter(df),
+#                     use_container_width=True
+#                 )
+                
+#                 # 显示相关性分析
+#                 st.subheader("相关性分析")
+#                 if insights.get('correlations'):
+#                     st.metric(
+#                         "评分-情感相关性",
+#                         f"{insights['correlations']['correlation']:.2f}"
+#                     )
+#                     st.metric(
+#                         "评分-情感一致性",
+#                         f"{insights['correlations']['consistency']:.1%}"
+#                     )
+
+
 def show_insights_analysis(df: pd.DataFrame, language: str):
     """
     显示评论洞察分析页面
@@ -285,7 +340,7 @@ def show_insights_analysis(df: pd.DataFrame, language: str):
             # 提取洞察
             insights = insight_analyzer.extract_insights(df)
             
-            if insights:
+            if insights and 'anomalies' in insights:
                 # 显示异常检测结果
                 st.subheader("异常评论检测")
                 
@@ -302,11 +357,12 @@ def show_insights_analysis(df: pd.DataFrame, language: str):
                         f"{insights['anomalies']['total']/len(df):.1%}"
                     )
                 
-                # 显示异常散点图
-                st.plotly_chart(
-                    insight_visualizer.create_anomaly_scatter(df),
-                    use_container_width=True
-                )
+                # 显示异常散点图 - 使用带有异常标记的完整DataFrame
+                if 'df' in insights['anomalies']:
+                    st.plotly_chart(
+                        insight_visualizer.create_anomaly_scatter(insights['anomalies']['df']),
+                        use_container_width=True
+                    )
                 
                 # 显示相关性分析
                 st.subheader("相关性分析")

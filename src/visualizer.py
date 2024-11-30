@@ -9,6 +9,7 @@ import base64
 import networkx as nx
 import numpy as np
 from plotly.subplots import make_subplots
+import streamlit as st
 
 class Visualizer:
     """基础可视化类"""
@@ -745,6 +746,69 @@ class InsightVisualizer(Visualizer):
             'trend_down': '#c0392b'
         }
     
+    # def create_anomaly_scatter(self, df: pd.DataFrame) -> go.Figure:
+    #     """
+    #     创建异常检测散点图
+        
+    #     Args:
+    #         df: 包含异常标记的DataFrame
+            
+    #     Returns:
+    #         go.Figure: Plotly图表对象
+    #     """
+    #     try:
+    #         fig = go.Figure()
+            
+    #         # 添加正常点
+    #         normal_data = df[~df['is_anomaly']]
+    #         fig.add_trace(go.Scatter(
+    #             x=normal_data['rating'],
+    #             y=normal_data['sentiment_score'],
+    #             mode='markers',
+    #             name='正常评论',
+    #             marker=dict(
+    #                 color=self.color_scheme['normal'],
+    #                 size=8,
+    #                 opacity=0.6
+    #             ),
+    #             text=normal_data['review_text'],
+    #             hovertemplate="评分: %{x}<br>情感分: %{y}<br>评论: %{text}<extra></extra>"
+    #         ))
+            
+    #         # 添加异常点
+    #         anomaly_data = df[df['is_anomaly']]
+    #         fig.add_trace(go.Scatter(
+    #             x=anomaly_data['rating'],
+    #             y=anomaly_data['sentiment_score'],
+    #             mode='markers',
+    #             name='异常评论',
+    #             marker=dict(
+    #                 color=self.color_scheme['anomaly'],
+    #                 size=10,
+    #                 symbol='x'
+    #             ),
+    #             text=anomaly_data.apply(
+    #                 lambda x: f"{x['review_text']}<br>异常原因: {x['anomaly_reason']}", 
+    #                 axis=1
+    #             ),
+    #             hovertemplate="评分: %{x}<br>情感分: %{y}<br>%{text}<extra></extra>"
+    #         ))
+            
+    #         fig.update_layout(
+    #             title="评分-情感分布异常检测",
+    #             xaxis_title="评分",
+    #             yaxis_title="情感得分",
+    #             hovermode='closest',
+    #             showlegend=True
+    #         )
+            
+    #         return fig
+            
+    #     except Exception as e:
+    #         st.error(f"异常散点图生成失败：{str(e)}")
+    #         return go.Figure()
+
+
     def create_anomaly_scatter(self, df: pd.DataFrame) -> go.Figure:
         """
         创建异常检测散点图
@@ -758,53 +822,63 @@ class InsightVisualizer(Visualizer):
         try:
             fig = go.Figure()
             
+            # 确定要使用的列
+            x_col = 'rating' if 'rating' in df.columns else 'timestamp'
+            y_col = 'sentiment_score' if 'sentiment_score' in df.columns else 'text_length'
+            text_col = 'content' if 'content' in df.columns else 'review_text'
+            
+            if 'is_anomaly' not in df.columns:
+                raise ValueError("DataFrame must contain 'is_anomaly' column")
+                
             # 添加正常点
             normal_data = df[~df['is_anomaly']]
-            fig.add_trace(go.Scatter(
-                x=normal_data['rating'],
-                y=normal_data['sentiment_score'],
-                mode='markers',
-                name='正常评论',
-                marker=dict(
-                    color=self.color_scheme['normal'],
-                    size=8,
-                    opacity=0.6
-                ),
-                text=normal_data['review_text'],
-                hovertemplate="评分: %{x}<br>情感分: %{y}<br>评论: %{text}<extra></extra>"
-            ))
+            if not normal_data.empty:
+                fig.add_trace(go.Scatter(
+                    x=normal_data[x_col],
+                    y=normal_data[y_col],
+                    mode='markers',
+                    name='正常评论',
+                    marker=dict(
+                        color=self.color_scheme['normal'],
+                        size=8,
+                        opacity=0.6
+                    ),
+                    text=normal_data[text_col],
+                    hovertemplate=f"{x_col}: %{{x}}<br>{y_col}: %{{y}}<br>评论: %{{text}}<extra></extra>"
+                ))
             
             # 添加异常点
             anomaly_data = df[df['is_anomaly']]
-            fig.add_trace(go.Scatter(
-                x=anomaly_data['rating'],
-                y=anomaly_data['sentiment_score'],
-                mode='markers',
-                name='异常评论',
-                marker=dict(
-                    color=self.color_scheme['anomaly'],
-                    size=10,
-                    symbol='x'
-                ),
-                text=anomaly_data.apply(
-                    lambda x: f"{x['review_text']}<br>异常原因: {x['anomaly_reason']}", 
-                    axis=1
-                ),
-                hovertemplate="评分: %{x}<br>情感分: %{y}<br>%{text}<extra></extra>"
-            ))
+            if not anomaly_data.empty:
+                fig.add_trace(go.Scatter(
+                    x=anomaly_data[x_col],
+                    y=anomaly_data[y_col],
+                    mode='markers',
+                    name='异常评论',
+                    marker=dict(
+                        color=self.color_scheme['anomaly'],
+                        size=10,
+                        symbol='x'
+                    ),
+                    text=anomaly_data.apply(
+                        lambda x: f"{x[text_col]}<br>异常原因: {x.get('anomaly_reason', '未知')}", 
+                        axis=1
+                    ),
+                    hovertemplate=f"{x_col}: %{{x}}<br>{y_col}: %{{y}}<br>%{{text}}<extra></extra>"
+                ))
             
             fig.update_layout(
-                title="评分-情感分布异常检测",
-                xaxis_title="评分",
-                yaxis_title="情感得分",
+                title="评论特征分布异常检测",
+                xaxis_title=x_col,
+                yaxis_title=y_col,
                 hovermode='closest',
                 showlegend=True
             )
             
             return fig
-            
+        
         except Exception as e:
-            st.error(f"异常散点图生成失败：{str(e)}")
+            st.error(f"异常散点图生成失败: {str(e)}")
             return go.Figure()
     
     def create_correlation_heatmap(self, correlation_data: Dict) -> go.Figure:

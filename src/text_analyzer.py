@@ -810,6 +810,76 @@ class InsightAnalyzer(TextAnalyzer):
                 'error': str(e)
             }
     
+    # def detect_anomalies(self, df: pd.DataFrame) -> pd.DataFrame:
+    #     """
+    #     检测评论异常
+        
+    #     Args:
+    #         df: 包含评论数据的DataFrame
+            
+    #     Returns:
+    #         pd.DataFrame: 带有异常标记的DataFrame
+    #     """
+    #     try:
+    #         # 复制数据框
+    #         df_copy = df.copy()
+            
+    #         # 准备特征
+    #         features = []
+            
+    #         # 1. 评分特征
+    #         if 'rating' in df_copy.columns:
+    #             features.append(df_copy['rating'])
+            
+    #         # 2. 评论长度特征
+    #         if 'content' in df_copy.columns:
+    #             df_copy['review_length'] = df_copy['content'].str.len()
+    #             features.append(df_copy['review_length'])
+    #         elif 'review_text' in df_copy.columns:  # 添加对 review_text 列的支持
+    #             df_copy['review_length'] = df_copy['review_text'].str.len()
+    #             features.append(df_copy['review_length'])
+            
+    #         # 如果没有足够的特征，返回原始数据框
+    #         if len(features) < 1:
+    #             st.warning("没有足够的特征用于异常检测")
+    #             df_copy['is_anomaly'] = False
+    #             df_copy['anomaly_reason'] = ''
+    #             return df_copy
+            
+    #         # 将特征组合成矩阵
+    #         X = np.column_stack(features)
+            
+    #         # 标准化特征
+    #         X_scaled = self.scaler.fit_transform(X)
+            
+    #         # 检测异常
+    #         anomaly_labels = self.outlier_detector.fit_predict(X_scaled)
+    #         df_copy['is_anomaly'] = anomaly_labels == -1
+            
+    #         # 添加异常原因
+    #         df_copy['anomaly_reason'] = ''
+    #         anomaly_mask = df_copy['is_anomaly']
+            
+    #         # 检测异常长度的评论
+    #         if 'review_length' in df_copy.columns:
+    #             length_mean = df_copy['review_length'].mean()
+    #             length_std = df_copy['review_length'].std()
+    #             extremely_short = df_copy['review_length'] < (length_mean - 2 * length_std)
+    #             extremely_long = df_copy['review_length'] > (length_mean + 2 * length_std)
+                
+    #             df_copy.loc[anomaly_mask & extremely_short, 'anomaly_reason'] = '评论异常简短'
+    #             df_copy.loc[anomaly_mask & extremely_long, 'anomaly_reason'] = '评论异常冗长'
+            
+    #         # 对于没有具体原因的异常，标记为"其他异常"
+    #         df_copy.loc[anomaly_mask & (df_copy['anomaly_reason'] == ''), 'anomaly_reason'] = '其他异常'
+            
+    #         return df_copy
+            
+    #     except Exception as e:
+    #         st.error(f"异常检测失败：{str(e)}")
+    #         return df
+
+
     def detect_anomalies(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         检测评论异常
@@ -821,30 +891,27 @@ class InsightAnalyzer(TextAnalyzer):
             pd.DataFrame: 带有异常标记的DataFrame
         """
         try:
-            # 复制数据框
+            # 复制数据框避免修改原始数据
             df_copy = df.copy()
             
             # 准备特征
             features = []
+            feature_names = []
             
             # 1. 评分特征
             if 'rating' in df_copy.columns:
                 features.append(df_copy['rating'])
+                feature_names.append('rating')
             
             # 2. 评论长度特征
-            if 'content' in df_copy.columns:
-                df_copy['review_length'] = df_copy['content'].str.len()
-                features.append(df_copy['review_length'])
-            elif 'review_text' in df_copy.columns:  # 添加对 review_text 列的支持
-                df_copy['review_length'] = df_copy['review_text'].str.len()
-                features.append(df_copy['review_length'])
+            df_copy['text_length'] = df_copy['content'].str.len()
+            features.append(df_copy['text_length'])
+            feature_names.append('text_length')
             
-            # 如果没有足够的特征，返回原始数据框
-            if len(features) < 1:
-                st.warning("没有足够的特征用于异常检测")
-                df_copy['is_anomaly'] = False
-                df_copy['anomaly_reason'] = ''
-                return df_copy
+            # 3. 如果有情感分数，也加入特征
+            if 'sentiment_score' in df_copy.columns:
+                features.append(df_copy['sentiment_score'])
+                feature_names.append('sentiment_score')
             
             # 将特征组合成矩阵
             X = np.column_stack(features)
@@ -860,24 +927,38 @@ class InsightAnalyzer(TextAnalyzer):
             df_copy['anomaly_reason'] = ''
             anomaly_mask = df_copy['is_anomaly']
             
-            # 检测异常长度的评论
-            if 'review_length' in df_copy.columns:
-                length_mean = df_copy['review_length'].mean()
-                length_std = df_copy['review_length'].std()
-                extremely_short = df_copy['review_length'] < (length_mean - 2 * length_std)
-                extremely_long = df_copy['review_length'] > (length_mean + 2 * length_std)
+            # 计算各特征的Z分数
+            for i, feature in enumerate(feature_names):
+                z_scores = np.abs(stats.zscore(X_scaled[:, i]))
                 
-                df_copy.loc[anomaly_mask & extremely_short, 'anomaly_reason'] = '评论异常简短'
-                df_copy.loc[anomaly_mask & extremely_long, 'anomaly_reason'] = '评论异常冗长'
+                # 根据特征类型添加具体原因
+                if feature == 'rating':
+                    mask = (z_scores > 2) & anomaly_mask
+                    df_copy.loc[mask, 'anomaly_reason'] += '评分异常 '
+                
+                elif feature == 'text_length':
+                    # 区分异常长和异常短
+                    length_mean = df_copy['text_length'].mean()
+                    extremely_short = (df_copy['text_length'] < length_mean/2) & anomaly_mask
+                    extremely_long = (df_copy['text_length'] > length_mean*2) & anomaly_mask
+                    
+                    df_copy.loc[extremely_short, 'anomaly_reason'] += '评论过短 '
+                    df_copy.loc[extremely_long, 'anomaly_reason'] += '评论过长 '
+                
+                elif feature == 'sentiment_score':
+                    mask = (z_scores > 2) & anomaly_mask
+                    df_copy.loc[mask, 'anomaly_reason'] += '情感异常 '
             
-            # 对于没有具体原因的异常，标记为"其他异常"
-            df_copy.loc[anomaly_mask & (df_copy['anomaly_reason'] == ''), 'anomaly_reason'] = '其他异常'
+            # 清理异常原因格式
+            df_copy['anomaly_reason'] = df_copy['anomaly_reason'].str.strip()
+            df_copy.loc[anomaly_mask & (df_copy['anomaly_reason'] == ''), 'anomaly_reason'] = '综合特征异常'
             
             return df_copy
             
         except Exception as e:
-            st.error(f"异常检测失败：{str(e)}")
+            st.error(f"异常检测失败: {str(e)}")
             return df
+
     
     # 移除实例方法上的缓存装饰器，改为使用静态方法
     @staticmethod
@@ -896,9 +977,21 @@ class InsightAnalyzer(TextAnalyzer):
         analyzer = InsightAnalyzer(language)
         return analyzer._extract_insights(df)
     
+    # def extract_insights(self, df: pd.DataFrame) -> Dict:
+    #     """
+    #     提取评论洞察的公共接口
+        
+    #     Args:
+    #         df: 包含评论数据的DataFrame
+            
+    #     Returns:
+    #         Dict: 洞察结果
+    #     """
+    #     return self.cached_extract_insights(df, self.language)
+
     def extract_insights(self, df: pd.DataFrame) -> Dict:
         """
-        提取评论洞察的公共接口
+        实际的洞察提取逻辑
         
         Args:
             df: 包含评论数据的DataFrame
@@ -906,7 +999,29 @@ class InsightAnalyzer(TextAnalyzer):
         Returns:
             Dict: 洞察结果
         """
-        return self.cached_extract_insights(df, self.language)
+        try:
+            # 检测异常并获取带有异常标记的DataFrame
+            df_with_anomalies = self.detect_anomalies(df)
+            
+            # 分析相关性
+            correlations = self.analyze_rating_sentiment_correlation(df_with_anomalies)
+            
+            # 汇总洞察
+            insights = {
+                'anomalies': {
+                    'total': int(df_with_anomalies['is_anomaly'].sum()),
+                    'details': df_with_anomalies[df_with_anomalies['is_anomaly']],
+                    'reasons': df_with_anomalies[df_with_anomalies['is_anomaly']]['anomaly_reason'].value_counts().to_dict(),
+                    'df': df_with_anomalies  # 添加这行，保存完整的带异常标记的DataFrame
+                },
+                'correlations': correlations
+            }
+            
+            return insights
+            
+        except Exception as e:
+            st.error(f"洞察分析失败：{str(e)}")
+            return {}
     
     def _extract_insights(self, df: pd.DataFrame) -> Dict:
         """

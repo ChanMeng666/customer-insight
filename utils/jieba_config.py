@@ -1,6 +1,7 @@
 import jieba
 import jieba.analyse
 import os
+import streamlit as st
 
 def initialize_jieba():
     """初始化jieba配置"""
