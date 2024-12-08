@@ -10,6 +10,18 @@
 </div>
 <br/>
 
+![screencapture-chanmeng666-customerinsight-app-oeiu2h-streamlit-app-2024-11-30-16_18_57](https://github.com/user-attachments/assets/8914f8fd-53fd-4c42-b330-a0a5f2100f0e)
+
+![screencapture-localhost-8501-2024-11-22-01_09_52](https://github.com/user-attachments/assets/406d52e0-fdba-4378-bc6b-c1b7ce6237d6)
+
+![screencapture-localhost-8501-2024-11-30-16_29_21](https://github.com/user-attachments/assets/780e1366-ec84-45e6-8217-9fa6afff3344)
+
+![screencapture-localhost-8501-2024-11-30-16_30_20](https://github.com/user-attachments/assets/baef9c1a-c969-4e03-bd44-a97ea05a5c01)
+
+![screencapture-localhost-8501-2024-11-30-16_30_54](https://github.com/user-attachments/assets/04d88137-64ad-4bb6-93ea-38e0b3167c4a)
+
+![screencapture-localhost-8501-2024-11-30-16_31_32](https://github.com/user-attachments/assets/935f01aa-7ad2-4181-ad4c-0895da595045)
+
 # Features
 
 🎯 **Comprehensive Analysis Tools**
