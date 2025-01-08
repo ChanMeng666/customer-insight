@@ -10,6 +10,12 @@
 </div>
 <br/>
 
+<br/>
+
+[![Explore GitHub Profile README Generator](https://gradient-svg-generator.vercel.app/?text=👉+Try+It+Now!+👈&height=40&template=pride-rainbow)](https://chanmeng666-customerinsight-app-oeiu2h.streamlit.app/)
+
+<br/>
+
 ![screencapture-chanmeng666-customerinsight-app-oeiu2h-streamlit-app-2024-11-30-16_18_57](https://github.com/user-attachments/assets/8914f8fd-53fd-4c42-b330-a0a5f2100f0e)
 
 ![screencapture-localhost-8501-2024-11-22-01_09_52](https://github.com/user-attachments/assets/406d52e0-fdba-4378-bc6b-c1b7ce6237d6)
