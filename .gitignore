@@ -8,15 +8,22 @@ ENV/
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
 
 # Distribution
 dist/
 build/
-*.egg-info/
 
 # IDE
 .idea/
 .vscode/
+
+# Testing & linting
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
 
 # Large files
 *.dll
@@ -25,9 +32,10 @@ build/
 *.so
 *.dylib
 
-# Model & data files
+# Model files
 *.pt
 *.pth
 *.h5
-*.json
+
+# Data files (keep example dataset)
 *.xlsx

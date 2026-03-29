@@ -6,108 +6,105 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import streamlit as st
 
+from src.utils import STOPWORDS_PATH
+
 class TextCleaner:
-    """
-    文本清洗工具类，提供文本预处理、分词和标准化功能
-    """
-    
+    """Text cleaning utility class providing preprocessing, tokenization, and normalization."""
+
     def __init__(self, language: str = "chinese"):
         """
-        初始化文本清洗器
-        
+        Initialize the text cleaner.
+
         Args:
-            language: 文本语言，支持 'chinese' 或 'english'
+            language: Text language, supports 'chinese' or 'english'
         """
         self.language = language
         self.stopwords: Set[str] = set()
         self.load_stopwords()
-        
+
     def load_stopwords(self) -> None:
-        """
-        加载停用词表
-        """
+        """Load the stopwords list."""
         try:
             if self.language == "chinese":
-                # 加载中文停用词（这里需要添加中文停用词文件路径）
-                with open('utils/chinese_stopwords.txt', 'r', encoding='utf-8') as f:
+                with open(STOPWORDS_PATH, 'r', encoding='utf-8') as f:
                     self.stopwords = set(line.strip() for line in f)
             else:
                 self.stopwords = set(stopwords.words('english'))
         except Exception as e:
-            print(f"停用词加载失败：{str(e)}")
-    
+            print(f"Failed to load stopwords: {str(e)}")
+
     def preprocess_text(self, text: str) -> str:
         """
-        文本预处理
-        
+        Preprocess text content.
+
         Args:
-            text: 输入文本
-            
+            text: Input text
+
         Returns:
-            str: 预处理后的文本
+            str: Preprocessed text
         """
-        # 转换HTML实体
+        # Convert HTML entities
         text = html.unescape(text)
-        
-        # 移除HTML标签
+
+        # Remove HTML tags
         text = re.sub(r'<[^>]+>', '', text)
-        
-        # 移除URL
+
+        # Remove URLs
         text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
-        
-        # 移除表情符号
+
+        # Remove emojis
         text = re.sub(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF]', '', text)
-        
+
         return text.strip()
-    
+
     def segment_text(self, text: str) -> List[str]:
         """
-        文本分词
-        
+        Tokenize text.
+
         Args:
-            text: 输入文本
-            
+            text: Input text
+
         Returns:
-            List[str]: 分词结果列表
+            List[str]: List of tokens
         """
         if self.language == "chinese":
             return list(jieba.cut(text))
         else:
             return word_tokenize(text)
-    
+
     def remove_stopwords(self, words: List[str]) -> List[str]:
         """
-        移除停用词
-        
+        Remove stopwords from word list.
+
         Args:
-            words: 分词列表
-            
+            words: List of tokens
+
         Returns:
-            List[str]: 移除停用词后的词列表
+            List[str]: Filtered word list
         """
         return [w for w in words if w not in self.stopwords]
-    
+
     def clean_text(self, text: str) -> str:
         """
-        完整的文本清洗流程
-        
+        Full text cleaning pipeline.
+
         Args:
-            text: 输入文本
-            
+            text: Input text
+
         Returns:
-            str: 清洗后的文本
+            str: Cleaned text
         """
-        # 预处理
+        # Preprocess
         text = self.preprocess_text(text)
-        
-        # 分词
+
+        # Tokenize
         words = self.segment_text(text)
-        
-        # 移除停用词
+
+        # Remove stopwords
         words = self.remove_stopwords(words)
-        
-        # 标准化
+
+        # Normalize
         if self.language != "chinese":
             words = [w.lower() for w in words]
-        
-        return " ".join(words) 
+
+        return " ".join(words)

@@ -12,108 +12,108 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 class Visualizer:
-    """基础可视化类"""
-    
+    """Base visualization class"""
+
     def __init__(self):
-        """初始化基础可视化器"""
+        """Initialize the base visualizer"""
         pass
-        
+
     def create_line_plot(self, df: pd.DataFrame, x: str, y: str, title: str) -> go.Figure:
         """
-        创建折线图
-        
+        Create a line plot
+
         Args:
-            df: 数据框
-            x: x轴列名
-            y: y轴列名
-            title: 图表标题
-            
+            df: DataFrame
+            x: Column name for x-axis
+            y: Column name for y-axis
+            title: Chart title
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         fig = px.line(df, x=x, y=y, title=title)
         return fig
-        
+
     def create_bar_plot(self, df: pd.DataFrame, x: str, y: str, title: str) -> go.Figure:
         """
-        创建柱状图
-        
+        Create a bar plot
+
         Args:
-            df: 数据框
-            x: x轴列名
-            y: y轴列名
-            title: 图表标题
-            
+            df: DataFrame
+            x: Column name for x-axis
+            y: Column name for y-axis
+            title: Chart title
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         fig = px.bar(df, x=x, y=y, title=title)
         return fig
 
 class SentimentVisualizer(Visualizer):
-    """情感分析可视化器"""
-    
+    """Sentiment analysis visualizer"""
+
     def __init__(self):
         super().__init__()
         self.color_map = {
-            '正面': '#2ecc71',
-            '中性': '#95a5a6',
-            '负面': '#e74c3c'
+            'positive': '#2ecc71',
+            'neutral': '#95a5a6',
+            'negative': '#e74c3c'
         }
-    
+
     def create_sentiment_distribution(self, sentiment_results: List[Dict]) -> go.Figure:
         """
-        创建情感分布饼图
-        
+        Create a sentiment distribution pie chart
+
         Args:
-            sentiment_results: 情感分析结果列表
-            
+            sentiment_results: List of sentiment analysis results
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         df = pd.DataFrame(sentiment_results)
         sentiment_counts = df['sentiment'].value_counts()
-        
+
         fig = px.pie(
             values=sentiment_counts.values,
             names=sentiment_counts.index,
-            title='评论情感分布',
+            title='Sentiment Distribution',
             color=sentiment_counts.index,
             color_discrete_map=self.color_map
         )
-        
+
         fig.update_traces(textposition='inside', textinfo='percent+label')
         fig.update_layout(showlegend=False)
-        
+
         return fig
-    
+
     def create_sentiment_trend(self, df: pd.DataFrame) -> go.Figure:
         """
-        创建情感趋势图
-        
+        Create a sentiment trend chart
+
         Args:
-            df: 包含时间戳和情感的DataFrame
-            
+            df: DataFrame containing timestamps and sentiments
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         try:
-            # 确保timestamp列是datetime类型
+            # Ensure timestamp column is datetime type
             if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
                 df = df.copy()
                 df['timestamp'] = pd.to_datetime(df['timestamp'])
-            
-            # 按日期统计各情感的数量
+
+            # Count sentiments by date
             daily_sentiment = df.groupby([
                 df['timestamp'].dt.date,
                 'sentiment'
             ]).size().unstack(fill_value=0)
-            
-            # 计算百分比
+
+            # Calculate percentages
             daily_sentiment_pct = daily_sentiment.div(daily_sentiment.sum(axis=1), axis=0) * 100
-            
+
             fig = go.Figure()
-            
+
             for sentiment in daily_sentiment_pct.columns:
                 fig.add_trace(go.Scatter(
                     x=daily_sentiment_pct.index,
@@ -123,39 +123,39 @@ class SentimentVisualizer(Visualizer):
                     line=dict(color=self.color_map.get(sentiment)),
                     stackgroup='one'
                 ))
-            
+
             fig.update_layout(
-                title='情感趋势变化',
-                xaxis_title='日期',
-                yaxis_title='比例 (%)',
+                title='Sentiment Trend',
+                xaxis_title='Date',
+                yaxis_title='Proportion (%)',
                 hovermode='x unified'
             )
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"情感趋势图生成失败：{str(e)}")
+            st.error(f"Failed to generate sentiment trend chart: {str(e)}")
             return go.Figure()
-    
+
     def create_rating_sentiment_comparison(self, df: pd.DataFrame) -> go.Figure:
         """
-        创建评分-情感对比图
-        
+        Create a rating-sentiment comparison chart
+
         Args:
-            df: 包含评分和情感的DataFrame
-            
+            df: DataFrame containing ratings and sentiments
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
-        # 计算每个评分的情感分布
+        # Calculate sentiment distribution for each rating
         rating_sentiment = pd.crosstab(
             df['rating'],
             df['sentiment'],
             normalize='index'
         ) * 100
-        
+
         fig = go.Figure()
-        
+
         for sentiment in rating_sentiment.columns:
             fig.add_trace(go.Bar(
                 x=rating_sentiment.index,
@@ -163,202 +163,49 @@ class SentimentVisualizer(Visualizer):
                 name=sentiment,
                 marker_color=self.color_map.get(sentiment)
             ))
-        
+
         fig.update_layout(
-            title='评分与情感分布对比',
-            xaxis_title='评分',
-            yaxis_title='比例 (%)',
+            title='Rating vs Sentiment Distribution',
+            xaxis_title='Rating',
+            yaxis_title='Proportion (%)',
             barmode='stack',
             showlegend=True
         )
-        
-        return fig
 
-# class KeywordVisualizer(Visualizer):
-#     """关键词可视化器"""
-    
-#     def __init__(self):
-#         """初始化关键词可视化器"""
-#         super().__init__()
-#         self.color_scheme = {
-#             'positive': '#2ecc71',
-#             'negative': '#e74c3c',
-#             'neutral': '#95a5a6'
-#         }
-    
-#     def create_wordcloud(self, keywords: Dict[str, float], 
-#                         title: str = "关键词云图") -> go.Figure:
-#         """
-#         生成词云图
-        
-#         Args:
-#             keywords: 关键词及其权重
-#             title: 图表标题
-            
-#         Returns:
-#             go.Figure: Plotly图表对象
-#         """
-#         try:
-#             # 创建词云对象
-#             wc = WordCloud(
-#                 width=800,
-#                 height=400,
-#                 background_color='white',
-#                 font_path='simhei.ttf'  # 使用系统中文字体
-#             )
-            
-#             # 生成词云
-#             wc.generate_from_frequencies(keywords)
-            
-#             # 转换为图像
-#             img = wc.to_image()
-            
-#             # 将图像转换为base64字符串
-#             img_buffer = io.BytesIO()
-#             img.save(img_buffer, format='PNG')
-#             img_str = base64.b64encode(img_buffer.getvalue()).decode()
-            
-#             # 创建Plotly图表
-#             fig = go.Figure()
-            
-#             fig.add_layout_image(
-#                 dict(
-#                     source=f'data:image/png;base64,{img_str}',
-#                     x=0,
-#                     y=1,
-#                     sizex=1,
-#                     sizey=1,
-#                     sizing="stretch",
-#                     layer="below"
-#                 )
-#             )
-            
-#             fig.update_layout(
-#                 title=title,
-#                 showlegend=False,
-#                 width=800,
-#                 height=400,
-#                 margin=dict(l=0, r=0, t=30, b=0)
-#             )
-            
-#             return fig
-            
-#         except Exception as e:
-#             st.error(f"词云图生成失败：{str(e)}")
-#             return go.Figure()
-    
-#     def create_keyword_trend_chart(self, trend_df: pd.DataFrame) -> go.Figure:
-#         """
-#         生成关键词趋势图
-        
-#         Args:
-#             trend_df: 包含时间戳和关键词频率的DataFrame
-            
-#         Returns:
-#             go.Figure: Plotly图表对象
-#         """
-#         try:
-#             fig = go.Figure()
-            
-#             # 为每个关键词添加一条线
-#             for keyword in trend_df['keyword'].unique():
-#                 keyword_data = trend_df[trend_df['keyword'] == keyword]
-                
-#                 fig.add_trace(go.Scatter(
-#                     x=keyword_data['timestamp'],
-#                     y=keyword_data['frequency'],
-#                     name=keyword,
-#                     mode='lines+markers'
-#                 ))
-            
-#             fig.update_layout(
-#                 title='关键词趋势变化',
-#                 xaxis_title='时间',
-#                 yaxis_title='频率',
-#                 hovermode='x unified',
-#                 showlegend=True
-#             )
-            
-#             return fig
-            
-#         except Exception as e:
-#             st.error(f"趋势图生成失败：{str(e)}")
-#             return go.Figure()
-    
-#     def create_rating_keyword_comparison(self, keywords_by_rating: Dict[str, Dict[str, float]]) -> go.Figure:
-#         """
-#         生成评分关键词对比图
-        
-#         Args:
-#             keywords_by_rating: 各评分段的关键词及权重
-            
-#         Returns:
-#             go.Figure: Plotly图表对象
-#         """
-#         try:
-#             fig = go.Figure()
-            
-#             # 添加正面评价关键词
-#             fig.add_trace(go.Bar(
-#                 x=list(keywords_by_rating['positive'].keys()),
-#                 y=list(keywords_by_rating['positive'].values()),
-#                 name='正面评价',
-#                 marker_color=self.color_scheme['positive']
-#             ))
-            
-#             # 添加负面评价关键词
-#             fig.add_trace(go.Bar(
-#                 x=list(keywords_by_rating['negative'].keys()),
-#                 y=[-v for v in keywords_by_rating['negative'].values()],
-#                 name='负面评价',
-#                 marker_color=self.color_scheme['negative']
-#             ))
-            
-#             fig.update_layout(
-#                 title='正负面评价关键词对比',
-#                 barmode='overlay',
-#                 yaxis_title='权重',
-#                 showlegend=True
-#             )
-            
-#             return fig
-            
-#         except Exception as e:
-#             st.error(f"对比图生成失败：{str(e)}")
-#             return go.Figure()
+        return fig
 
 
 class KeywordVisualizer(Visualizer):
     def create_wordcloud(self, keywords: Dict[str, float],
-                        title: str = "关键词云图") -> go.Figure:
-        """创建词云图"""
+                        title: str = "Keyword Cloud") -> go.Figure:
+        """Create a word cloud chart"""
         try:
             if not keywords:
-                raise ValueError("没有关键词数据")
-            
-            # 准备数据
+                raise ValueError("No keyword data available")
+
+            # Prepare data
             words = list(keywords.keys())
             weights = list(keywords.values())
-            
-            # 计算字体大小和颜色
+
+            # Calculate font sizes and colors
             min_size = 15
             max_size = 50
             sizes = [min_size + (max_size - min_size) * w for w in weights]
-            
-            # 创建颜色映射
+
+            # Create color mapping
             colors = px.colors.sequential.Viridis
             color_indices = np.linspace(0, len(colors)-1, len(words)).astype(int)
-            
-            # 创建散点图
+
+            # Create scatter plot
             fig = go.Figure()
-            
-            # 使用极坐标分布词语
+
+            # Distribute words using polar coordinates
             theta = np.linspace(0, 2*np.pi, len(words))
             radius = np.random.uniform(0.3, 1, len(words))
             x_pos = radius * np.cos(theta)
             y_pos = radius * np.sin(theta)
-            
-            # 添加文本散点
+
+            # Add text scatter
             fig.add_trace(go.Scatter(
                 x=x_pos,
                 y=y_pos,
@@ -369,11 +216,11 @@ class KeywordVisualizer(Visualizer):
                     color=[colors[i] for i in color_indices]
                 ),
                 hoverinfo='text',
-                hovertemplate='%{text}<br>权重: %{customdata:.2f}<extra></extra>',
+                hovertemplate='%{text}<br>Weight: %{customdata:.2f}<extra></extra>',
                 customdata=weights
             ))
-            
-            # 更新布局
+
+            # Update layout
             fig.update_layout(
                 title=dict(
                     text=title,
@@ -400,27 +247,27 @@ class KeywordVisualizer(Visualizer):
                 paper_bgcolor='white',
                 plot_bgcolor='white'
             )
-            
+
             return fig
-        
+
         except Exception as e:
-            st.error(f"词云图生成失败: {str(e)}")
+            st.error(f"Failed to generate word cloud: {str(e)}")
             return go.Figure()
 
     def create_keyword_trend_chart(self, trend_df: pd.DataFrame) -> go.Figure:
-        """生成关键词趋势图"""
+        """Create a keyword trend chart"""
         try:
             if trend_df.empty:
-                raise ValueError("趋势数据为空")
-            
+                raise ValueError("Trend data is empty")
+
             fig = go.Figure()
-            
-            # 为每个关键词和类别组合创建一条线
+
+            # Create a line for each keyword and category combination
             for category in trend_df['category'].unique():
                 for keyword in trend_df['keyword'].unique():
                     mask = (trend_df['category'] == category) & (trend_df['keyword'] == keyword)
                     data = trend_df[mask]
-                    
+
                     if not data.empty:
                         name = f"{keyword} ({category})"
                         fig.add_trace(go.Scatter(
@@ -431,16 +278,16 @@ class KeywordVisualizer(Visualizer):
                             line=dict(width=2),
                             marker=dict(size=6)
                         ))
-            
-            # 更新布局
+
+            # Update layout
             fig.update_layout(
                 title=dict(
-                    text='关键词趋势变化',
+                    text='Keyword Trends',
                     x=0.5,
                     y=0.95
                 ),
-                xaxis_title='时间',
-                yaxis_title='相对频率',
+                xaxis_title='Time',
+                yaxis_title='Relative Frequency',
                 hovermode='x unified',
                 showlegend=True,
                 width=900,
@@ -454,59 +301,59 @@ class KeywordVisualizer(Visualizer):
                 ),
                 margin=dict(t=100)
             )
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"趋势图生成失败: {str(e)}")
+            st.error(f"Failed to generate trend chart: {str(e)}")
             return go.Figure()
 
-    def create_rating_keyword_comparison(self, 
+    def create_rating_keyword_comparison(self,
                                        keywords_by_rating: Dict[str, Dict[str, float]]) -> go.Figure:
-        """生成评分关键词对比图"""
+        """Create a rating keyword comparison chart"""
         try:
             if not keywords_by_rating.get('positive') and not keywords_by_rating.get('negative'):
-                raise ValueError("关键词数据为空")
-            
+                raise ValueError("Keyword data is empty")
+
             fig = go.Figure()
-            
-            # 添加正面评价关键词
+
+            # Add positive review keywords
             pos_words = list(keywords_by_rating['positive'].keys())
             pos_weights = list(keywords_by_rating['positive'].values())
-            
+
             fig.add_trace(go.Bar(
                 x=pos_words,
                 y=pos_weights,
-                name='正面评价',
+                name='Positive Reviews',
                 marker_color='rgb(46, 204, 113)',
                 text=pos_weights,
                 texttemplate='%{text:.2f}',
                 textposition='outside'
             ))
-            
-            # 添加负面评价关键词
+
+            # Add negative review keywords
             neg_words = list(keywords_by_rating['negative'].keys())
             neg_weights = [-w for w in keywords_by_rating['negative'].values()]
-            
+
             fig.add_trace(go.Bar(
                 x=neg_words,
                 y=neg_weights,
-                name='负面评价',
+                name='Negative Reviews',
                 marker_color='rgb(231, 76, 60)',
                 text=[-w for w in neg_weights],
                 texttemplate='%{text:.2f}',
                 textposition='outside'
             ))
-            
-            # 更新布局
+
+            # Update layout
             fig.update_layout(
                 title=dict(
-                    text='正负面评价关键词对比',
+                    text='Positive vs Negative Keyword Comparison',
                     x=0.5,
                     y=0.95
                 ),
-                xaxis_title='关键词',
-                yaxis_title='权重',
+                xaxis_title='Keywords',
+                yaxis_title='Weight',
                 barmode='relative',
                 showlegend=True,
                 width=900,
@@ -516,82 +363,82 @@ class KeywordVisualizer(Visualizer):
                     tickformat='.2f'
                 )
             )
-            
-            # 添加水平参考线
+
+            # Add horizontal reference line
             fig.add_hline(y=0, line_dash="dash", line_color="gray")
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"对比图生成失败: {str(e)}")
+            st.error(f"Failed to generate comparison chart: {str(e)}")
             return go.Figure()
 
 class TopicVisualizer(Visualizer):
-    """主题可视化器"""
-    
+    """Topic visualizer"""
+
     def __init__(self):
-        """初始化主题可视化器"""
+        """Initialize the topic visualizer"""
         super().__init__()
         self.color_scheme = px.colors.qualitative.Set3
-    
+
     def create_topic_distribution(self, topic_results: Dict) -> go.Figure:
         """
-        创建主题分布图
-        
+        Create a topic distribution chart
+
         Args:
-            topic_results: 主题分析结果
-            
+            topic_results: Topic analysis results
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         try:
-            # 计算每个主题的文档数量
+            # Count documents per topic
             topic_counts = pd.Series(topic_results['document_topics']).value_counts()
-            
-            # 创建饼图
+
+            # Create pie chart
             fig = px.pie(
                 values=topic_counts.values,
-                names=[f"主题{i+1}" for i in topic_counts.index],
-                title="文档主题分布",
+                names=[f"Topic {i+1}" for i in topic_counts.index],
+                title="Document Topic Distribution",
                 color_discrete_sequence=self.color_scheme
             )
-            
+
             fig.update_traces(textposition='inside', textinfo='percent+label')
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"主题分布图生成失败：{str(e)}")
+            st.error(f"Failed to generate topic distribution chart: {str(e)}")
             return go.Figure()
-    
+
     def create_topic_network(self, topic_results: Dict) -> go.Figure:
         """
-        创建主题-关键词网络图
-        
+        Create a topic-keyword network graph
+
         Args:
-            topic_results: 主题分析结果
-            
+            topic_results: Topic analysis results
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         try:
-            # 创建网络图
+            # Create network graph
             G = nx.Graph()
-            
-            # 添加节点和边
+
+            # Add nodes and edges
             for topic_idx, keywords in enumerate(topic_results['topics']):
-                topic_node = f'主题{topic_idx+1}'
+                topic_node = f'Topic {topic_idx+1}'
                 G.add_node(topic_node, node_type='topic')
-                
-                # 添加关键词节点和边
+
+                # Add keyword nodes and edges
                 for keyword in keywords:
                     G.add_node(keyword, node_type='keyword')
                     G.add_edge(topic_node, keyword)
-            
-            # 使用spring_layout布局
+
+            # Use spring_layout for positioning
             pos = nx.spring_layout(G, k=1, iterations=50)
-            
-            # 创建节点轨迹
+
+            # Create node trace
             node_trace = go.Scatter(
                 x=[],
                 y=[],
@@ -606,8 +453,8 @@ class TopicVisualizer(Visualizer):
                 ),
                 textposition="top center"
             )
-            
-            # 创建边轨迹
+
+            # Create edge trace
             edge_trace = go.Scatter(
                 x=[],
                 y=[],
@@ -615,106 +462,106 @@ class TopicVisualizer(Visualizer):
                 hoverinfo='none',
                 mode='lines'
             )
-            
-            # 添加边
+
+            # Add edges
             for edge in G.edges():
                 x0, y0 = pos[edge[0]]
                 x1, y1 = pos[edge[1]]
                 edge_trace['x'] += (x0, x1, None)
                 edge_trace['y'] += (y0, y1, None)
-            
-            # 添加节点
+
+            # Add nodes
             for node in G.nodes():
                 x, y = pos[node]
                 node_trace['x'] += (x,)
                 node_trace['y'] += (y,)
                 node_trace['text'] += (node,)
-                
-                # 设置节点大小和颜色
+
+                # Set node size and color
                 if G.nodes[node]['node_type'] == 'topic':
                     node_trace['marker']['size'] += (30,)
                     node_trace['marker']['color'] += (1,)
                 else:
                     node_trace['marker']['size'] += (20,)
                     node_trace['marker']['color'] += (0,)
-            
-            # 创建图形
+
+            # Create figure
             fig = go.Figure(data=[edge_trace, node_trace],
                           layout=go.Layout(
-                              title='主题-关键词网络图',
+                              title='Topic-Keyword Network',
                               showlegend=False,
                               hovermode='closest',
                               margin=dict(b=20,l=5,r=5,t=40),
                               xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                               yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
                           ))
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"主题网络图生成失败：{str(e)}")
+            st.error(f"Failed to generate topic network graph: {str(e)}")
             return go.Figure()
-    
+
     def create_topic_heatmap(self, topics_df: pd.DataFrame) -> go.Figure:
         """
-        创建主题热力图
-        
+        Create a topic heatmap
+
         Args:
-            topics_df: 主题-文档分布矩阵
-            
+            topics_df: Topic-document distribution matrix
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         try:
             fig = go.Figure(data=go.Heatmap(
                 z=topics_df.values,
-                x=[f"主题{i+1}" for i in range(topics_df.shape[1])],
+                x=[f"Topic {i+1}" for i in range(topics_df.shape[1])],
                 y=topics_df.index,
                 colorscale='Viridis',
-                colorbar=dict(title="主题权重")
+                colorbar=dict(title="Topic Weight")
             ))
-            
+
             fig.update_layout(
-                title="文档-主题分布热力图",
-                xaxis_title="主题",
-                yaxis_title="文档ID",
+                title="Document-Topic Distribution Heatmap",
+                xaxis_title="Topic",
+                yaxis_title="Document ID",
                 height=600
             )
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"主题热力图生成失败：{str(e)}")
+            st.error(f"Failed to generate topic heatmap: {str(e)}")
             return go.Figure()
-    
+
     def create_topic_trend(self, trend_df: pd.DataFrame) -> go.Figure:
         """
-        创建主题趋势图
-        
+        Create a topic trend chart
+
         Args:
-            trend_df: 主题趋势数据
-            
+            trend_df: Topic trend data
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         try:
             fig = go.Figure()
-            
-            # 为每个主题添加一条线
+
+            # Add a line for each topic
             for topic in trend_df.columns:
                 fig.add_trace(go.Scatter(
                     x=trend_df.index,
                     y=trend_df[topic],
-                    name=f"主题{topic+1}",
+                    name=f"Topic {topic+1}",
                     mode='lines+markers',
                     line=dict(width=2),
                     marker=dict(size=6)
                 ))
-            
+
             fig.update_layout(
-                title="主题趋势变化",
-                xaxis_title="时间",
-                yaxis_title="比例 (%)",
+                title="Topic Trends",
+                xaxis_title="Time",
+                yaxis_title="Proportion (%)",
                 hovermode='x unified',
                 showlegend=True,
                 legend=dict(
@@ -725,18 +572,18 @@ class TopicVisualizer(Visualizer):
                     x=1
                 )
             )
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"主题趋势图生成失败：{str(e)}")
+            st.error(f"Failed to generate topic trend chart: {str(e)}")
             return go.Figure()
 
 class InsightVisualizer(Visualizer):
-    """洞察可视化器"""
-    
+    """Insight visualizer"""
+
     def __init__(self):
-        """初始化洞察可视化器"""
+        """Initialize the insight visualizer"""
         super().__init__()
         self.color_scheme = {
             'anomaly': '#e74c3c',
@@ -745,163 +592,101 @@ class InsightVisualizer(Visualizer):
             'trend_up': '#27ae60',
             'trend_down': '#c0392b'
         }
-    
-    # def create_anomaly_scatter(self, df: pd.DataFrame) -> go.Figure:
-    #     """
-    #     创建异常检测散点图
-        
-    #     Args:
-    #         df: 包含异常标记的DataFrame
-            
-    #     Returns:
-    #         go.Figure: Plotly图表对象
-    #     """
-    #     try:
-    #         fig = go.Figure()
-            
-    #         # 添加正常点
-    #         normal_data = df[~df['is_anomaly']]
-    #         fig.add_trace(go.Scatter(
-    #             x=normal_data['rating'],
-    #             y=normal_data['sentiment_score'],
-    #             mode='markers',
-    #             name='正常评论',
-    #             marker=dict(
-    #                 color=self.color_scheme['normal'],
-    #                 size=8,
-    #                 opacity=0.6
-    #             ),
-    #             text=normal_data['review_text'],
-    #             hovertemplate="评分: %{x}<br>情感分: %{y}<br>评论: %{text}<extra></extra>"
-    #         ))
-            
-    #         # 添加异常点
-    #         anomaly_data = df[df['is_anomaly']]
-    #         fig.add_trace(go.Scatter(
-    #             x=anomaly_data['rating'],
-    #             y=anomaly_data['sentiment_score'],
-    #             mode='markers',
-    #             name='异常评论',
-    #             marker=dict(
-    #                 color=self.color_scheme['anomaly'],
-    #                 size=10,
-    #                 symbol='x'
-    #             ),
-    #             text=anomaly_data.apply(
-    #                 lambda x: f"{x['review_text']}<br>异常原因: {x['anomaly_reason']}", 
-    #                 axis=1
-    #             ),
-    #             hovertemplate="评分: %{x}<br>情感分: %{y}<br>%{text}<extra></extra>"
-    #         ))
-            
-    #         fig.update_layout(
-    #             title="评分-情感分布异常检测",
-    #             xaxis_title="评分",
-    #             yaxis_title="情感得分",
-    #             hovermode='closest',
-    #             showlegend=True
-    #         )
-            
-    #         return fig
-            
-    #     except Exception as e:
-    #         st.error(f"异常散点图生成失败：{str(e)}")
-    #         return go.Figure()
 
 
     def create_anomaly_scatter(self, df: pd.DataFrame) -> go.Figure:
         """
-        创建异常检测散点图
-        
+        Create an anomaly detection scatter plot
+
         Args:
-            df: 包含异常标记的DataFrame
-            
+            df: DataFrame containing anomaly markers
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         try:
             fig = go.Figure()
-            
-            # 确定要使用的列
+
+            # Determine which columns to use
             x_col = 'rating' if 'rating' in df.columns else 'timestamp'
             y_col = 'sentiment_score' if 'sentiment_score' in df.columns else 'text_length'
             text_col = 'content' if 'content' in df.columns else 'review_text'
-            
+
             if 'is_anomaly' not in df.columns:
                 raise ValueError("DataFrame must contain 'is_anomaly' column")
-                
-            # 添加正常点
+
+            # Add normal points
             normal_data = df[~df['is_anomaly']]
             if not normal_data.empty:
                 fig.add_trace(go.Scatter(
                     x=normal_data[x_col],
                     y=normal_data[y_col],
                     mode='markers',
-                    name='正常评论',
+                    name='Normal Reviews',
                     marker=dict(
                         color=self.color_scheme['normal'],
                         size=8,
                         opacity=0.6
                     ),
                     text=normal_data[text_col],
-                    hovertemplate=f"{x_col}: %{{x}}<br>{y_col}: %{{y}}<br>评论: %{{text}}<extra></extra>"
+                    hovertemplate=f"{x_col}: %{{x}}<br>{y_col}: %{{y}}<br>Review: %{{text}}<extra></extra>"
                 ))
-            
-            # 添加异常点
+
+            # Add anomaly points
             anomaly_data = df[df['is_anomaly']]
             if not anomaly_data.empty:
                 fig.add_trace(go.Scatter(
                     x=anomaly_data[x_col],
                     y=anomaly_data[y_col],
                     mode='markers',
-                    name='异常评论',
+                    name='Anomalous Reviews',
                     marker=dict(
                         color=self.color_scheme['anomaly'],
                         size=10,
                         symbol='x'
                     ),
                     text=anomaly_data.apply(
-                        lambda x: f"{x[text_col]}<br>异常原因: {x.get('anomaly_reason', '未知')}", 
+                        lambda x: f"{x[text_col]}<br>Anomaly reason: {x.get('anomaly_reason', 'Unknown')}",
                         axis=1
                     ),
                     hovertemplate=f"{x_col}: %{{x}}<br>{y_col}: %{{y}}<br>%{{text}}<extra></extra>"
                 ))
-            
+
             fig.update_layout(
-                title="评论特征分布异常检测",
+                title="Review Feature Anomaly Detection",
                 xaxis_title=x_col,
                 yaxis_title=y_col,
                 hovermode='closest',
                 showlegend=True
             )
-            
+
             return fig
-        
+
         except Exception as e:
-            st.error(f"异常散点图生成失败: {str(e)}")
+            st.error(f"Failed to generate anomaly scatter plot: {str(e)}")
             return go.Figure()
-    
+
     def create_correlation_heatmap(self, correlation_data: Dict) -> go.Figure:
         """
-        创建相关性热力图
-        
+        Create a correlation heatmap
+
         Args:
-            correlation_data: 相关性分析数据
-            
+            correlation_data: Correlation analysis data
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         try:
-            # 构建相关性矩阵
+            # Build correlation matrix
             metrics = ['rating', 'sentiment', 'review_length', 'time_interval']
             matrix = np.zeros((len(metrics), len(metrics)))
-            
+
             for i, m1 in enumerate(metrics):
                 for j, m2 in enumerate(metrics):
                     key = f"{m1}_{m2}"
                     if key in correlation_data:
                         matrix[i][j] = correlation_data[key]
-            
+
             fig = go.Figure(data=go.Heatmap(
                 z=matrix,
                 x=metrics,
@@ -913,38 +698,38 @@ class InsightVisualizer(Visualizer):
                 textfont={"size": 12},
                 hoverongaps=False
             ))
-            
+
             fig.update_layout(
-                title="评论特征相关性分析",
-                xaxis_title="特征",
-                yaxis_title="特征",
+                title="Review Feature Correlation Analysis",
+                xaxis_title="Feature",
+                yaxis_title="Feature",
                 height=500
             )
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"相关性热力图生成失败：{str(e)}")
+            st.error(f"Failed to generate correlation heatmap: {str(e)}")
             return go.Figure()
-    
+
     def create_issue_timeline(self, issues: List[Dict]) -> go.Figure:
         """
-        创建问题时间线
-        
+        Create an issue timeline
+
         Args:
-            issues: 问题列表
-            
+            issues: List of issues
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         try:
-            # 准备数据
+            # Prepare data
             df = pd.DataFrame(issues)
-            df['size'] = np.log1p(df['frequency']) * 20  # 根据频率调整气泡大小
-            
+            df['size'] = np.log1p(df['frequency']) * 20  # Adjust bubble size based on frequency
+
             fig = go.Figure()
-            
-            # 添加气泡图
+
+            # Add bubble chart
             fig.add_trace(go.Scatter(
                 x=df.index,
                 y=df['avg_rating'],
@@ -954,61 +739,61 @@ class InsightVisualizer(Visualizer):
                     color=df['avg_rating'],
                     colorscale='RdYlGn',
                     showscale=True,
-                    colorbar=dict(title="平均评分")
+                    colorbar=dict(title="Average Rating")
                 ),
                 text=df.apply(
-                    lambda x: f"关键词: {x['keyword']}<br>" +
-                             f"频率: {x['frequency']}<br>" +
-                             f"平均评分: {x['avg_rating']:.1f}",
+                    lambda x: f"Keywords: {x['keyword']}<br>" +
+                             f"Frequency: {x['frequency']}<br>" +
+                             f"Average Rating: {x['avg_rating']:.1f}",
                     axis=1
                 ),
                 hovertemplate="%{text}<extra></extra>"
             ))
-            
+
             fig.update_layout(
-                title="新出现问题时间线",
-                xaxis_title="问题ID",
-                yaxis_title="平均评分",
+                title="Emerging Issues Timeline",
+                xaxis_title="Issue ID",
+                yaxis_title="Average Rating",
                 showlegend=False,
                 height=400
             )
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"问题时间线生成失败：{str(e)}")
+            st.error(f"Failed to generate issue timeline: {str(e)}")
             return go.Figure()
-    
+
     def create_improvement_dashboard(self, suggestions: List[Dict]) -> go.Figure:
         """
-        创建改进建议仪表板
-        
+        Create an improvement suggestions dashboard
+
         Args:
-            suggestions: 改进建议列表
-            
+            suggestions: List of improvement suggestions
+
         Returns:
-            go.Figure: Plotly图表对象
+            go.Figure: Plotly figure object
         """
         try:
-            # 准备数据
+            # Prepare data
             df = pd.DataFrame(suggestions)
-            
-            # 创建子图
+
+            # Create subplots
             fig = make_subplots(
                 rows=2, cols=2,
                 subplot_titles=(
-                    "问题频率分布",
-                    "平均评分分布",
-                    "关键词网络",
-                    "改进优先级"
+                    "Issue Frequency Distribution",
+                    "Average Rating Distribution",
+                    "Keyword Network",
+                    "Improvement Priority"
                 ),
                 specs=[
                     [{"type": "pie"}, {"type": "bar"}],
                     [{"type": "scatter"}, {"type": "bar"}]
                 ]
             )
-            
-            # 1. 问题频率饼图
+
+            # 1. Issue frequency pie chart
             fig.add_trace(
                 go.Pie(
                     labels=df['topic'],
@@ -1017,8 +802,8 @@ class InsightVisualizer(Visualizer):
                 ),
                 row=1, col=1
             )
-            
-            # 2. 平均评分条形统计图
+
+            # 2. Average rating bar chart
             fig.add_trace(
                 go.Bar(
                     x=df['topic'],
@@ -1028,27 +813,27 @@ class InsightVisualizer(Visualizer):
                 ),
                 row=1, col=2
             )
-            
-            # 3. 优先级散点图
+
+            # 3. Priority scatter plot
             priority_score = (1 - df['avg_rating']/5) * df['frequency']
             fig.add_trace(
                 go.Bar(
                     x=df['topic'],
                     y=priority_score,
                     marker_color='red',
-                    name='优先级得分'
+                    name='Priority Score'
                 ),
                 row=2, col=2
             )
-            
+
             fig.update_layout(
-                title="改进建议分析仪表板",
+                title="Improvement Suggestions Dashboard",
                 showlegend=False,
                 height=800
             )
-            
+
             return fig
-            
+
         except Exception as e:
-            st.error(f"改进建议仪表板生成失败：{str(e)}")
+            st.error(f"Failed to generate improvement suggestions dashboard: {str(e)}")
             return go.Figure()
