@@ -3,7 +3,6 @@
   <h1>CustomerInsight</h1>
   <p>AI-powered customer review analysis platform</p>
 
-  <a href="https://github.com/ChanMeng666/customer-insight/actions"><img src="https://img.shields.io/github/actions/workflow/status/ChanMeng666/customer-insight/ci.yml?branch=main&label=CI" alt="CI"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.9+-blue.svg" alt="Python 3.9+"></a>
   <a href="https://github.com/ChanMeng666/customer-insight/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ChanMeng666/customer-insight" alt="License"></a>
   <a href="https://github.com/ChanMeng666/customer-insight/stargazers"><img src="https://img.shields.io/github/stars/ChanMeng666/customer-insight" alt="Stars"></a>
@@ -88,20 +87,9 @@ graph TD
 
 **Data**: Pandas · NumPy · SciPy
 
-## Development
+## Contributing
 
-```bash
-# Install dev dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest tests/ -v
-
-# Lint
-ruff check .
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development guide.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development guide.
 
 ## License
 
