@@ -429,7 +429,7 @@ class TopicAnalyzer(TextAnalyzer):
             else:
                 # Use sentence embeddings
                 text_vectors = self._cached_vectorize_texts(texts, self.sentence_model)
-                results = self._run_kmeans(text_vectors, n_topics)
+                results = self._run_kmeans(text_vectors, n_topics, texts)
 
             # Add example documents
             results['example_docs'] = self._get_topic_examples(
@@ -488,7 +488,7 @@ class TopicAnalyzer(TextAnalyzer):
             st.error(f"LDA analysis failed: {str(e)}")
             return {}
     
-    def _run_kmeans(self, text_vectors: np.ndarray, n_topics: int) -> Dict:
+    def _run_kmeans(self, text_vectors: np.ndarray, n_topics: int, texts: list = None) -> Dict:
         """
         Run KMeans clustering.
 

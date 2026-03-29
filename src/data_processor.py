@@ -27,8 +27,6 @@ class DataProcessor:
         try:
             jieba.initialize()
 
-            # Set stopwords file path
-            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             stopwords_path = STOPWORDS_PATH
 
             # Ensure stopwords file exists
