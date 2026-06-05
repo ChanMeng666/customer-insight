@@ -442,6 +442,15 @@ def main():
 
     # Sidebar
     with st.sidebar:
+        # Developer brand credit — Chan Meng
+        st.image("brand/chan-meng-monkey.png", width=72)
+        st.markdown(
+            "**Built by Chan Meng**  \n"
+            "Need a custom app like this one?  \n"
+            "📧 [chanmeng.dev@gmail.com](mailto:chanmeng.dev@gmail.com)  \n"
+            "💻 [github.com/ChanMeng666](https://github.com/ChanMeng666)"
+        )
+        st.divider()
         st.header("Configuration")
         language = st.selectbox(
             "Select review language",
